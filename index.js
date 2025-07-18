@@ -293,9 +293,15 @@ async function analyzeTextWithOpenAIStream(text, apiKey, orgId, systemPrompt = n
 }
 
 // Cache for the latest hostage count (1 hour TTL)
+const HOSTAGE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const HOSTAGE_CACHE = { value: '50', updated: 0 };
 // Cache for the latest hostage news (30 min TTL)
+const NEWS_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const NEWS_CACHE = { headline: '', url: '', updated: 0 };
+
+function isCacheValid(cache, ttl) {
+  return Date.now() - cache.updated < ttl && !!cache.updated;
+}
 
 // Fetch current hostage count using OpenAI's browser tool
 async function fetchHostageCountUsingBrowsing(apiKey, orgId) {
@@ -364,15 +370,38 @@ async function fetchLatestHostageNewsUsingBrowsing(apiKey, orgId) {
 
 async function handleLatestHostageNewsRequest(env) {
   const now = Date.now();
-  const ttl = 30 * 60 * 1000; // 30 minutes
-  if (now - NEWS_CACHE.updated < ttl && NEWS_CACHE.headline) {
-    return { headline: NEWS_CACHE.headline, url: NEWS_CACHE.url, fetched: new Date(NEWS_CACHE.updated).toISOString() };
+  if (isCacheValid(NEWS_CACHE, NEWS_TTL_MS) && NEWS_CACHE.headline) {
+    return {
+      headline: NEWS_CACHE.headline,
+      url: NEWS_CACHE.url,
+      fetched: new Date(NEWS_CACHE.updated).toISOString(),
+    };
   }
-  const news = await fetchLatestHostageNewsUsingBrowsing(env.OPEN_API_KEY_NEW, env.OPENAI_ORG_ID);
-  NEWS_CACHE.headline = news.headline;
-  NEWS_CACHE.url = news.url;
-  NEWS_CACHE.updated = now;
-  return { headline: news.headline, url: news.url, fetched: new Date(now).toISOString() };
+  try {
+    const news = await fetchLatestHostageNewsUsingBrowsing(
+      env.OPEN_API_KEY_NEW,
+      env.OPENAI_ORG_ID,
+    );
+    NEWS_CACHE.headline = news.headline;
+    NEWS_CACHE.url = news.url;
+    NEWS_CACHE.updated = now;
+    return {
+      headline: news.headline,
+      url: news.url,
+      fetched: new Date(now).toISOString(),
+    };
+  } catch (err) {
+    console.error('News fetch failed:', err);
+    if (NEWS_CACHE.headline) {
+      return {
+        headline: NEWS_CACHE.headline,
+        url: NEWS_CACHE.url,
+        fetched: new Date(NEWS_CACHE.updated).toISOString(),
+        error: 'Serving cached news',
+      };
+    }
+    return { error: 'Failed to fetch news' };
+  }
 }
 
 /*************************************************************
@@ -6402,14 +6431,31 @@ async function handleHeroStoryRequest(body, env) {
 
 async function handleHostageCountRequest(env) {
   const now = Date.now();
-  const oneHour = 3600 * 1000;
-  if (now - HOSTAGE_CACHE.updated < oneHour && HOSTAGE_CACHE.value) {
-    return HOSTAGE_CACHE.value;
+  if (isCacheValid(HOSTAGE_CACHE, HOSTAGE_TTL_MS) && HOSTAGE_CACHE.value) {
+    return {
+      count: HOSTAGE_CACHE.value,
+      fetched: new Date(HOSTAGE_CACHE.updated).toISOString(),
+    };
   }
-  const count = await fetchHostageCountUsingBrowsing(env.OPEN_API_KEY_NEW, env.OPENAI_ORG_ID);
-  HOSTAGE_CACHE.value = count;
-  HOSTAGE_CACHE.updated = now;
-  return count;
+  try {
+    const count = await fetchHostageCountUsingBrowsing(
+      env.OPEN_API_KEY_NEW,
+      env.OPENAI_ORG_ID,
+    );
+    HOSTAGE_CACHE.value = count;
+    HOSTAGE_CACHE.updated = now;
+    return { count, fetched: new Date(now).toISOString() };
+  } catch (err) {
+    console.error('Hostage count fetch failed:', err);
+    if (HOSTAGE_CACHE.value) {
+      return {
+        count: HOSTAGE_CACHE.value,
+        fetched: new Date(HOSTAGE_CACHE.updated).toISOString(),
+        error: 'Serving cached count',
+      };
+    }
+    return { count: '50', error: 'Failed to fetch count' };
+  }
 }
 
 /*************************************************************
@@ -6681,33 +6727,24 @@ export default {
       const url = new URL(request.url);
 
       if (request.method === "GET" && url.pathname === "/api/hostage-count") {
-        try {
-          const count = await handleHostageCountRequest(env);
-          return new Response(
-            JSON.stringify({ count }),
-            { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
-          );
-        } catch (e) {
-          return new Response(
-            JSON.stringify({ count: "50" }),
-            { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
-          );
-        }
+        const data = await handleHostageCountRequest(env);
+        return new Response(
+          JSON.stringify(data),
+          { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+        );
       }
 
       if (request.method === "GET" && url.pathname === "/api/latest-hostage-news") {
-        try {
-          const news = await handleLatestHostageNewsRequest(env);
-          return new Response(
-            JSON.stringify(news),
-            { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
-          );
-        } catch (e) {
-          return new Response(
-            JSON.stringify({ error: "Failed to fetch news" }),
-            { status: 500, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
-          );
-        }
+        const news = await handleLatestHostageNewsRequest(env);
+        return new Response(
+          JSON.stringify(news),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
       }
 
       if (request.method === "GET") {
