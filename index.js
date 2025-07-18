@@ -1959,7 +1959,7 @@ function getHtmlResponse(apiKey, orgId) {
       "      }",
       "      .ribbon-icon {",
       "        font-size: 0.9rem;",
-      "        filter: hue-rotate(45deg) brightness(1.2);",
+      "        filter: none;",
       "      }",
       "      .hostage-separator {",
       "        color: rgba(255, 255, 255, 0.6);",
