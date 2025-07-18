@@ -292,6 +292,40 @@ async function analyzeTextWithOpenAIStream(text, apiKey, orgId, systemPrompt = n
   return response.body;
 }
 
+// Cache for the latest hostage count (1 hour TTL)
+const HOSTAGE_CACHE = { value: '50', updated: 0 };
+
+// Fetch current hostage count using OpenAI's browser tool
+async function fetchHostageCountUsingBrowsing(apiKey, orgId) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+      'OpenAI-Organization': orgId
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      tools: [{ type: 'browser' }],
+      tool_choice: 'auto',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a factual assistant. Use the browser tool to search reputable news sources for the latest count of hostages held by Hamas in Gaza. Return only the number of hostages as an integer, no other words.'
+        },
+        { role: 'user', content: 'How many hostages remain in Gaza?' }
+      ],
+      max_tokens: 10
+    })
+  });
+  if (!res.ok) throw new Error(`OpenAI request failed: ${res.status}`);
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content || '';
+  const match = text.match(/\d+/);
+  if (!match) throw new Error('No number found');
+  return match[0];
+}
+
 /*************************************************************
  * 2) LOCATION & FILE UPLOAD HANDLERS
  *************************************************************/
@@ -3763,50 +3797,30 @@ function getHtmlResponse(apiKey, orgId) {
       "        if (dayCountEl) dayCountEl.textContent = daysDiff;",
       "      }",
       "      ",
-      "      // Fetch hostage count from OpenAI API",
-      "      async function updateHostageCount() {",
+      "      // Refresh hostage count from worker API",
+      "      async function refreshHostageCount() {",
       "        const hostageCountEl = document.getElementById('hostageCount');",
+      "        if (!hostageCountEl) return;",
       "        try {",
-      "          if (!hostageCountEl) return;",
-      "          ",
       "          hostageCountEl.textContent = 'Loading...';",
-      "          ",
-      "          const response = await fetch('/', {",
-      "            method: 'POST',",
-      "            headers: { 'Content-Type': 'application/json' },",
-      "            body: JSON.stringify({",
-      "              systemPrompt: 'You are a factual information assistant. Provide only the current number of hostages held in Gaza (both dead and alive) as of the latest reliable reports from credible sources like Israeli government, families, or international organizations. Respond with just the number, nothing else.',",
-      "              userPrompt: 'What is the current total number of hostages held in Gaza by Hamas as of today? Include both living and deceased hostages. Provide only the number.'",
-      "            })",
-      "          });",
-      "          ",
+      "          const response = await fetch('/api/hostage-count');",
       "          if (response.ok) {",
       "            const data = await response.json();",
-      "            let hostageText = data.response || '';",
-      "            // Extract number from response",
-      "            const numberMatch = hostageText.match(/\\d+/);",
-      "            if (numberMatch) {",
-      "              hostageCountEl.textContent = numberMatch[0];",
-      "            } else {",
-      "              hostageCountEl.textContent = '136'; // Fallback to last known count",
-      "            }",
-      "          } else {",
-      "            hostageCountEl.textContent = '136'; // Fallback to last known count",
+      "            if (data.count) hostageCountEl.textContent = data.count;",
       "          }",
       "        } catch (error) {",
-      "          console.error('Error fetching hostage count:', error);",
-      "          if (hostageCountEl) hostageCountEl.textContent = '136'; // Fallback to last known count",
+      "          console.error('Error refreshing hostage count:', error);",
       "        }",
       "      }",
       "      ",
       "      // Initialize counters",
       "      updateDaysSinceOct7();",
-      "      updateHostageCount();",
+      "      refreshHostageCount();",
       "      ",
       "      // Update day counter every hour",
       "      setInterval(updateDaysSinceOct7, 3600000);",
       "      // Update hostage count every 6 hours",
-      "      setInterval(updateHostageCount, 21600000);",
+      "      setInterval(refreshHostageCount, 21600000);",
 "      async function fetchChatResponse(systemPrompt, userPrompt, outputElement) {",
 "        try {",
 "          const response = await fetch('/', {",
@@ -6289,6 +6303,18 @@ async function handleHeroStoryRequest(body, env) {
   }
 }
 
+async function handleHostageCountRequest(env) {
+  const now = Date.now();
+  const oneHour = 3600 * 1000;
+  if (now - HOSTAGE_CACHE.updated < oneHour && HOSTAGE_CACHE.value) {
+    return HOSTAGE_CACHE.value;
+  }
+  const count = await fetchHostageCountUsingBrowsing(env.OPEN_API_KEY_NEW, env.OPENAI_ORG_ID);
+  HOSTAGE_CACHE.value = count;
+  HOSTAGE_CACHE.updated = now;
+  return count;
+}
+
 /*************************************************************
  * 5) MAIN WORKER CODE (EXPORT)
  *************************************************************/
@@ -6555,6 +6581,23 @@ export default {
         );
       }
 
+      const url = new URL(request.url);
+
+      if (request.method === "GET" && url.pathname === "/api/hostage-count") {
+        try {
+          const count = await handleHostageCountRequest(env);
+          return new Response(
+            JSON.stringify({ count }),
+            { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+          );
+        } catch (e) {
+          return new Response(
+            JSON.stringify({ count: "50" }),
+            { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+          );
+        }
+      }
+
       if (request.method === "GET") {
         return new Response(getHtmlResponse(env.OPEN_API_KEY_NEW, env.OPENAI_ORG_ID), {
           headers: { "Content-Type": "text/html" }
@@ -6562,7 +6605,6 @@ export default {
       }
 
       if (request.method === "POST") {
-        const url = new URL(request.url);
         const contentType = request.headers.get("Content-Type") || "";
 
         // Handle API endpoints
