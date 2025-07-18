@@ -294,6 +294,8 @@ async function analyzeTextWithOpenAIStream(text, apiKey, orgId, systemPrompt = n
 
 // Cache for the latest hostage count (1 hour TTL)
 const HOSTAGE_CACHE = { value: '50', updated: 0 };
+// Cache for the latest hostage news (30 min TTL)
+const NEWS_CACHE = { headline: '', url: '', updated: 0 };
 
 // Fetch current hostage count using OpenAI's browser tool
 async function fetchHostageCountUsingBrowsing(apiKey, orgId) {
@@ -324,6 +326,53 @@ async function fetchHostageCountUsingBrowsing(apiKey, orgId) {
   const match = text.match(/\d+/);
   if (!match) throw new Error('No number found');
   return match[0];
+}
+
+// Fetch latest hostage negotiation headline using OpenAI's browser tool
+async function fetchLatestHostageNewsUsingBrowsing(apiKey, orgId) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+      'OpenAI-Organization': orgId
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      tools: [{ type: 'browser' }],
+      tool_choice: 'auto',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a factual assistant. Use the browser tool to find the most recent credible headline about negotiations or updates on Israeli hostages in Gaza. Respond strictly in JSON with keys "headline" and "url".'
+        },
+        { role: 'user', content: 'Latest hostage negotiation news?' }
+      ],
+      max_tokens: 100
+    })
+  });
+  if (!res.ok) throw new Error(`OpenAI request failed: ${res.status}`);
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content || '';
+  try {
+    const obj = JSON.parse(text);
+    return { headline: obj.headline || '', url: obj.url || '' };
+  } catch {
+    return { headline: text, url: '' };
+  }
+}
+
+async function handleLatestHostageNewsRequest(env) {
+  const now = Date.now();
+  const ttl = 30 * 60 * 1000; // 30 minutes
+  if (now - NEWS_CACHE.updated < ttl && NEWS_CACHE.headline) {
+    return { headline: NEWS_CACHE.headline, url: NEWS_CACHE.url, fetched: new Date(NEWS_CACHE.updated).toISOString() };
+  }
+  const news = await fetchLatestHostageNewsUsingBrowsing(env.OPEN_API_KEY_NEW, env.OPENAI_ORG_ID);
+  NEWS_CACHE.headline = news.headline;
+  NEWS_CACHE.url = news.url;
+  NEWS_CACHE.updated = now;
+  return { headline: news.headline, url: news.url, fetched: new Date(now).toISOString() };
 }
 
 /*************************************************************
@@ -1020,6 +1069,27 @@ function getHtmlResponse(apiKey, orgId) {
 "#subheadlinePart1, #subheadlinePart2, #subheadlinePart3 {",
 "        transition: opacity 1.5s ease-in-out;",
 "        opacity: 1;",
+"      }",
+".latest-news {",
+"        font-size: clamp(1rem, 3vw, 1.4rem);",
+"        text-align: center;",
+"        color: var(--background-color);",
+"        margin: 0.5rem auto 1.5rem;",
+"        opacity: 0;",
+"        transition: opacity 0.6s ease-in-out;",
+"      }",
+".latest-news.visible {",
+"        opacity: 1;",
+"      }",
+".latest-news a {",
+"        color: var(--background-color);",
+"        text-decoration: underline;",
+"      }",
+".news-timestamp {",
+"        display: block;",
+"        font-size: 0.85rem;",
+"        color: var(--hero-subheadline-color);",
+"        margin-top: 0.25rem;",
 "      }",
 ".hero-description {",
 "        font-size: 1rem;",
@@ -3068,6 +3138,7 @@ function getHtmlResponse(apiKey, orgId) {
 "    <div class=\"hero-badge-container\"></div>",
 "    <h1 class=\"hero-headline\">Learn About October 7th & Combat Hate with AI <span class=\"heart-symbol\"></span></h1>",
 "    <h2 class=\"hero-subheadline\"><span id=\"subheadlinePart1\">Educational</span><br><span id=\"subheadlinePart2\">AI learning tools</span><br><span id=\"subheadlinePart3\">to combat hatred</span>.</h2>",
+"    <div id=\"latest-news\" class=\"latest-news\">Loading latest news...</div>",
 "",
 "<div class=\"hero-prompt-wrapper enhanced-hero-form\" style=\"margin-top: 3rem;\">",
 "  <!-- Quick Start Scenarios -->",
@@ -3818,9 +3889,35 @@ function getHtmlResponse(apiKey, orgId) {
       "      refreshHostageCount();",
       "      ",
       "      // Update day counter every hour",
-      "      setInterval(updateDaysSinceOct7, 3600000);",
-      "      // Update hostage count every 6 hours",
-      "      setInterval(refreshHostageCount, 21600000);",
+"      setInterval(updateDaysSinceOct7, 3600000);",
+"      // Update hostage count every 6 hours",
+"      setInterval(refreshHostageCount, 21600000);",
+"      async function loadLatestNews() {",
+"        const newsEl = document.getElementById('latest-news');",
+"        if (!newsEl) return;",
+"        try {",
+"          const response = await fetch('/api/latest-hostage-news');",
+"          if (response.ok) {",
+"            const data = await response.json();",
+"            if (data.headline) {",
+"              const date = new Date(data.fetched).toLocaleString();",
+"              newsEl.innerHTML = `<a href=\"${data.url}\" target=\"_blank\" rel=\"noopener noreferrer\">${data.headline}</a><span class=\"news-timestamp\"> ${date}</span>`;",
+"            } else if (data.error) {",
+"              newsEl.textContent = data.error;",
+"            } else {",
+"              newsEl.textContent = 'No news available';",
+"            }",
+"          } else {",
+"            newsEl.textContent = 'News unavailable';",
+"          }",
+"        } catch (e) {",
+"          console.error('News fetch error:', e);",
+"          newsEl.textContent = 'News unavailable';",
+"        }",
+"        newsEl.classList.add('visible');",
+"      }",
+"      loadLatestNews();",
+"      setInterval(loadLatestNews, 3600000);",
 "      async function fetchChatResponse(systemPrompt, userPrompt, outputElement) {",
 "        try {",
 "          const response = await fetch('/', {",
@@ -6594,6 +6691,21 @@ export default {
           return new Response(
             JSON.stringify({ count: "50" }),
             { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+          );
+        }
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/latest-hostage-news") {
+        try {
+          const news = await handleLatestHostageNewsRequest(env);
+          return new Response(
+            JSON.stringify(news),
+            { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+          );
+        } catch (e) {
+          return new Response(
+            JSON.stringify({ error: "Failed to fetch news" }),
+            { status: 500, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
           );
         }
       }
