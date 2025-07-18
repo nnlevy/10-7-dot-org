@@ -46,6 +46,7 @@ function validateRequest(body, requiredFields = []) {
 /*************************************************************
  * 2) ALL UTILITY & OPENAI FUNCTIONS
  *************************************************************/
+const HOSTAGE_CACHE = { value: '50', updated: 0 };
 async function generateHash(buffer) {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -195,9 +196,6 @@ function preprocessText(text) {
  * Calls the OpenAI API for analyzing the user's text.
  */
 async function analyzeTextWithOpenAI(text, apiKey, orgId, systemPrompt = null) {
-  console.log('[analyzeTextWithOpenAI] Starting API call to OpenAI');
-  console.log('[analyzeTextWithOpenAI] Text length:', text.length);
-  console.log('[analyzeTextWithOpenAI] System prompt length:', systemPrompt?.length || 0);
   
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -207,7 +205,7 @@ async function analyzeTextWithOpenAI(text, apiKey, orgId, systemPrompt = null) {
       "OpenAI-Organization": orgId,
     },
     body: JSON.stringify({
-      model: "gpt-3.5-turbo", 
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -233,6 +231,7 @@ async function analyzeTextWithOpenAI(text, apiKey, orgId, systemPrompt = null) {
         }
       ],
       max_tokens: 2000,
+      temperature: 0.7,
     }),
   });
   
@@ -266,7 +265,7 @@ async function analyzeTextWithOpenAIStream(text, apiKey, orgId, systemPrompt = n
       "OpenAI-Organization": orgId,
     },
     body: JSON.stringify({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -279,6 +278,7 @@ async function analyzeTextWithOpenAIStream(text, apiKey, orgId, systemPrompt = n
         }
       ],
       max_tokens: 2000,
+      temperature: 0.7,
       stream: true
     }),
   });
@@ -290,6 +290,44 @@ async function analyzeTextWithOpenAIStream(text, apiKey, orgId, systemPrompt = n
   }
 
   return response.body;
+}
+
+async function fetchHostageCountUsingBrowsing(apiKey, orgId) {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+      "OpenAI-Organization": orgId,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a factual assistant. Use the browser tool to search reputable news sources for the latest count of hostages held by Hamas in Gaza. Return only the number of hostages as an integer, no other words.",
+        },
+        { role: "user", content: "How many hostages are currently held in Gaza?" },
+      ],
+      tools: [{ type: "browser" }],
+      tool_choice: "auto",
+      max_tokens: 10,
+      temperature: 0,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI request failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content || "";
+  const match = text.match(/\d+/);
+  if (!match) {
+    throw new Error("No number found in OpenAI response");
+  }
+  return match[0];
 }
 
 /*************************************************************
@@ -342,7 +380,6 @@ async function handleFileUpload(request, env) {
     }
     const arrayBuffer = await file.arrayBuffer();
     const hash = await generateHash(arrayBuffer);
-    console.log("Generated Hash:", hash);
     const token = await getOAuthToken(env);
     if (!token) {
       return new Response(
@@ -351,9 +388,7 @@ async function handleFileUpload(request, env) {
       );
     }
     const endpoint = env.Google_Document_AI_Processor_Prediction_Endpoint;
-    console.log("Document AI Endpoint:", endpoint);
     const visionResult = await callVisionAPI(arrayBuffer, token, endpoint);
-    console.log("Vision API Response:", visionResult);
     if (visionResult?.error) {
       console.error("Document AI Error Response:", visionResult.error);
       return new Response(
@@ -372,7 +407,6 @@ async function handleFileUpload(request, env) {
       );
     }
     const preprocessed = preprocessText(rawText);
-    console.log("Preprocessed Text:", preprocessed);
     const systemPrompt = "You are an AI expert in antisemitism education and document analysis. REFERENCE KEY FACTS: ADL recorded 10,000+ US antisemitic incidents (2023, highest on record), 337% global rise post-October 7th (AJC), educated communities 3x more effective at prevention. Provide educational summaries that include: 1) Key facts and statistics (include these base stats when relevant), 2) Historical context and significance, 3) Educational takeaways for different audiences (students, teachers, community leaders), 4) Actionable steps for combating antisemitism, 5) Relevant resources and citations. Focus on making complex content accessible for educational use.";
     const analyzedText = await analyzeTextWithOpenAI(
       preprocessed,
@@ -380,18 +414,12 @@ async function handleFileUpload(request, env) {
       env.OPENAI_ORG_ID,
       systemPrompt
     );
-    console.log("OpenAI Analysis Result:", analyzedText);
-    const accept = request.headers.get("Accept") || "";
-    if (accept.includes("application/json")) {
-      return new Response(
-        JSON.stringify({ analysis: analyzedText.choices?.[0]?.message?.content || "No analysis returned." }),
-        { headers: { "Content-Type": "application/json" } }
-      );
-    } else {
-      return new Response(renderAnalysisResponse(analyzedText), {
-        headers: { "Content-Type": "text/html" },
-      });
-    }
+    return new Response(
+      JSON.stringify({
+        analysis: analyzedText.choices?.[0]?.message?.content || "No analysis returned."
+      }),
+      { headers: { "Content-Type": "application/json" } }
+    );
   } catch (error) {
     console.error("Error handling file upload:", error);
     return new Response(
@@ -422,17 +450,10 @@ async function handleLocationQuery(location, env) {
         /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
         '<a href="$2" target="_blank">$1</a>'
       );
-    const accept = (env && env.request && env.request.headers && env.request.headers.get) ? env.request.headers.get("Accept") : "";
-    if (accept && accept.includes("application/json")) {
-      return new Response(
-        JSON.stringify({ content: content }),
-        { headers: { "Content-Type": "application/json" } }
-      );
-    } else {
-      return new Response(safeContent, {
-        headers: { "Content-Type": "text/html" },
-      });
-    }
+    return new Response(
+      JSON.stringify({ content }),
+      { headers: { "Content-Type": "application/json" } }
+    );
   } catch (err) {
     console.error("Error in handleLocationQuery:", err);
     return new Response(
@@ -3763,50 +3784,28 @@ function getHtmlResponse(apiKey, orgId) {
       "        if (dayCountEl) dayCountEl.textContent = daysDiff;",
       "      }",
       "      ",
-      "      // Fetch hostage count from OpenAI API",
-      "      async function updateHostageCount() {",
+      "      async function refreshHostageCount() {",
       "        const hostageCountEl = document.getElementById('hostageCount');",
+      "        if (!hostageCountEl) return;",
       "        try {",
-      "          if (!hostageCountEl) return;",
-      "          ",
-      "          hostageCountEl.textContent = 'Loading...';",
-      "          ",
-      "          const response = await fetch('/', {",
-      "            method: 'POST',",
-      "            headers: { 'Content-Type': 'application/json' },",
-      "            body: JSON.stringify({",
-      "              systemPrompt: 'You are a factual information assistant. Provide only the current number of hostages held in Gaza (both dead and alive) as of the latest reliable reports from credible sources like Israeli government, families, or international organizations. Respond with just the number, nothing else.',",
-      "              userPrompt: 'What is the current total number of hostages held in Gaza by Hamas as of today? Include both living and deceased hostages. Provide only the number.'",
-      "            })",
-      "          });",
-      "          ",
-      "          if (response.ok) {",
-      "            const data = await response.json();",
-      "            let hostageText = data.response || '';",
-      "            // Extract number from response",
-      "            const numberMatch = hostageText.match(/\\d+/);",
-      "            if (numberMatch) {",
-      "              hostageCountEl.textContent = numberMatch[0];",
-      "            } else {",
-      "              hostageCountEl.textContent = '136'; // Fallback to last known count",
-      "            }",
-      "          } else {",
-      "            hostageCountEl.textContent = '136'; // Fallback to last known count",
+      "          const resp = await fetch('/api/hostage-count');",
+      "          if (resp.ok) {",
+      "            const data = await resp.json();",
+      "            if (data.count) hostageCountEl.textContent = data.count;",
       "          }",
-      "        } catch (error) {",
-      "          console.error('Error fetching hostage count:', error);",
-      "          if (hostageCountEl) hostageCountEl.textContent = '136'; // Fallback to last known count",
+      "        } catch (err) {",
+      "          console.error('Failed to refresh hostage count', err);",
       "        }",
       "      }",
       "      ",
       "      // Initialize counters",
       "      updateDaysSinceOct7();",
-      "      updateHostageCount();",
+      "      refreshHostageCount();",
       "      ",
       "      // Update day counter every hour",
       "      setInterval(updateDaysSinceOct7, 3600000);",
-      "      // Update hostage count every 6 hours",
-      "      setInterval(updateHostageCount, 21600000);",
+      "      // Refresh hostage count every 12 hours",
+      "      setInterval(refreshHostageCount, 43200000);",
 "      async function fetchChatResponse(systemPrompt, userPrompt, outputElement) {",
 "        try {",
 "          const response = await fetch('/', {",
@@ -3853,7 +3852,7 @@ function getHtmlResponse(apiKey, orgId) {
 "        }, 500);",
 "        try {",
 "          console.log('[fetchCTA] sending fetch');",
-"          const response = await fetch('/', {",
+"          const response = await fetch('/api/hero', {",
 "            method: 'POST',",
 "            headers: { 'Content-Type': 'application/json' },",
 "            body: JSON.stringify({ role: roleVal, challenge: challengeVal, cta: true, recommendation: recommendationText })",
@@ -4204,7 +4203,7 @@ function getHtmlResponse(apiKey, orgId) {
               "                // Use default if location detection fails or times out",
               "              }",
               "              ",
-              "              const response = await fetch('/', {",
+              "              const response = await fetch('/api/hero', {",
               "                method: 'POST',",
               "                headers: { 'Content-Type': 'application/json' },",
               "                body: JSON.stringify({ ",
@@ -4295,7 +4294,7 @@ function getHtmlResponse(apiKey, orgId) {
 "            const timeoutId = setTimeout(() => controller.abort(), 25000);",
 "            ",
 "            try {",
-"                const response = await fetch('/', {",
+"                const response = await fetch('/api/hero', {",
 "                    method: 'POST',",
 "                    headers: { 'Content-Type': 'application/json' },",
 "                    body: JSON.stringify({",
@@ -4731,7 +4730,7 @@ function getHtmlResponse(apiKey, orgId) {
 "          dotSpan.innerHTML = '<span class=\"loading-spinner\"></span>';",
 "          let ctaText = '';",
 "          try {",
-"            const response = await fetch('/', {",
+"            const response = await fetch('/api/hero', {",
 "              method: 'POST',",
 "              headers: { 'Content-Type': 'application/json' },",
 "              body: JSON.stringify({",
@@ -6294,13 +6293,11 @@ async function handleHeroStoryRequest(body, env) {
  *************************************************************/
 async function handleHeroFormRequest(body, env) {
   try {
-    console.log('[handleHeroFormRequest] Starting with body:', JSON.stringify(body));
     
     // Enhanced security: Validate and sanitize inputs
     const sanitizedBody = validateRequest(body, ['role', 'challenge']);
     const { role, challenge, location } = sanitizedBody;
     
-    console.log('[handleHeroFormRequest] Sanitized inputs - role:', role, 'challenge:', challenge?.substring(0, 50) + '...');
     
     // Get current hostage count and calculate days since Oct 7
     const oct7Date = new Date('2023-10-07');
@@ -6310,33 +6307,8 @@ async function handleHeroFormRequest(body, env) {
     // Get user location from request or fallback to headers
     const userCountry = location || body.headers?.['cf-ipcountry'] || 'unknown location';
     
-    // Get current hostage count (fallback to 136 if not available) - Skip this for now to avoid delays
+    // Static hostage count used to keep prompts concise
     let currentHostageCount = "136+";
-    // Temporarily disabled to debug main issue
-    /*
-    try {
-      // Quick API call with timeout to get updated count without slowing main response
-      const hostagePromise = analyzeTextWithOpenAI(
-        "Current Israeli hostages in Gaza count? Number only.",
-        env.OPEN_API_KEY_NEW,
-        env.OPENAI_ORG_ID,
-        "Factual assistant. Respond with number only."
-      );
-      
-      // Add timeout to prevent delays
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 3000)
-      );
-      
-      const hostageResponse = await Promise.race([hostagePromise, timeoutPromise]);
-      const hostageText = hostageResponse.choices?.[0]?.message?.content || "";
-      const numberMatch = hostageText.match(/\d+/);
-      if (numberMatch) currentHostageCount = numberMatch[0];
-    } catch (e) {
-      // Use fallback count if API is slow or fails
-      console.log('[handleHeroFormRequest] Hostage count API failed:', e.message);
-    }
-    */
 
     const systemPrompt = `You are an AI expert in October 7th education, hostage advocacy, and antisemitism response. 
 
@@ -6354,16 +6326,10 @@ IMPORTANT: Respond in PLAIN TEXT only. Do not use HTML tags, markdown, or any fo
 
     const userPrompt = `I am a ${role} and I need help with: ${challenge}. Please provide personalized guidance including current facts, response strategies, and action steps.`;
 
-    console.log('[handleHeroFormRequest] Calling OpenAI API...');
-    console.log('[handleHeroFormRequest] System prompt length:', systemPrompt.length);
-    console.log('[handleHeroFormRequest] User prompt length:', userPrompt.length);
-    console.log('[handleHeroFormRequest] API Key available:', !!env.OPEN_API_KEY_NEW);
-    console.log('[handleHeroFormRequest] Org ID available:', !!env.OPENAI_ORG_ID);
     
     // Temporary bypass for debugging - remove this once issue is found
     let openAIResponse;
     if (challenge && challenge.includes('TEST_BYPASS')) {
-      console.log('[handleHeroFormRequest] Using test bypass');
       openAIResponse = {
         choices: [{
           message: {
@@ -6371,21 +6337,15 @@ IMPORTANT: Respond in PLAIN TEXT only. Do not use HTML tags, markdown, or any fo
           }
         }]
       };
-      console.log('[handleHeroFormRequest] Using test response');
     } else {
       openAIResponse = await analyzeTextWithOpenAI(userPrompt, env.OPEN_API_KEY_NEW, env.OPENAI_ORG_ID, systemPrompt);
     }
-    console.log('[handleHeroFormRequest] OpenAI API response received:', openAIResponse ? 'success' : 'failed');
-    console.log('[handleHeroFormRequest] Raw OpenAI response:', JSON.stringify(openAIResponse, null, 2));
     
     if (!openAIResponse) {
       throw new Error('No response from OpenAI API');
     }
     
     const responseContent = openAIResponse?.choices?.[0]?.message?.content || "No advice available.";
-    console.log('[handleHeroFormRequest] Raw response content:', responseContent);
-    console.log('[handleHeroFormRequest] Response content length:', responseContent.length);
-    console.log('[handleHeroFormRequest] Response content preview:', responseContent.substring(0, 100));
     
     if (!responseContent || responseContent.trim() === '') {
       throw new Error('Empty response from OpenAI API');
@@ -6397,7 +6357,6 @@ IMPORTANT: Respond in PLAIN TEXT only. Do not use HTML tags, markdown, or any fo
       .replace(/<[^>]*>/g, '')        // Remove any other HTML tags
       .trim();
     
-    console.log('[handleHeroFormRequest] Returning JSON response with content type application/json');
     
     const jsonResponse = new Response(
       JSON.stringify({ 
@@ -6406,7 +6365,6 @@ IMPORTANT: Respond in PLAIN TEXT only. Do not use HTML tags, markdown, or any fo
       { headers: { "Content-Type": "application/json" } }
     );
     
-    console.log('[handleHeroFormRequest] Response headers:', jsonResponse.headers.get('Content-Type'));
     return jsonResponse;
   } catch (error) {
     console.error("[handleHeroFormRequest] Error:", error.message, error.stack);
@@ -6506,6 +6464,25 @@ async function handleEducationCTARequest(body, env) {
   }
 }
 
+async function handleHostageCountRequest(env) {
+  const headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+  };
+  const now = Date.now();
+  if (now - HOSTAGE_CACHE.updated < 12 * 60 * 60 * 1000) {
+    return new Response(JSON.stringify({ count: HOSTAGE_CACHE.value }), { headers });
+  }
+  try {
+    const count = await fetchHostageCountUsingBrowsing(env.OPEN_API_KEY_NEW, env.OPENAI_ORG_ID);
+    HOSTAGE_CACHE.value = count;
+    HOSTAGE_CACHE.updated = now;
+    return new Response(JSON.stringify({ count }), { headers });
+  } catch (err) {
+    return new Response(JSON.stringify({ count: "50" }), { headers });
+  }
+}
+
 async function handleEducationModalRequest(body, env) {
   try {
     const { systemPrompt, userPrompt } = body;
@@ -6554,15 +6531,18 @@ export default {
           { status: 500, headers: { "Content-Type": "application/json" } }
         );
       }
+      const url = new URL(request.url);
 
       if (request.method === "GET") {
+        if (url.pathname === "/api/hostage-count") {
+          return await handleHostageCountRequest(env);
+        }
         return new Response(getHtmlResponse(env.OPEN_API_KEY_NEW, env.OPENAI_ORG_ID), {
           headers: { "Content-Type": "text/html" }
         });
       }
 
       if (request.method === "POST") {
-        const url = new URL(request.url);
         const contentType = request.headers.get("Content-Type") || "";
 
         // Handle API endpoints
@@ -6574,6 +6554,17 @@ export default {
         if (url.pathname === "/api/hero-story") {
           const body = await request.json();
           return await handleHeroStoryRequest(body, env);
+        }
+
+        if (url.pathname === "/api/hero") {
+          const body = await request.json();
+          if (body.surprise) {
+            return await handleSurpriseEducationRequest(body, env);
+          }
+          if (body.cta && body.recommendation) {
+            return await handleEducationCTARequest(body, env);
+          }
+          return await handleHeroFormRequest(body, env);
         }
 
         if (url.pathname === "/api/location-insights") {
