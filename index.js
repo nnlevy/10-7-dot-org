@@ -212,20 +212,7 @@ async function analyzeTextWithOpenAI(text, apiKey, orgId, systemPrompt = null) {
         {
           role: "system",
           content: systemPrompt || 
-            `You are GrowthGPT, a top-tier business growth specialist. 
-             A user has provided a business report or leads to analyze. 
-             1) Begin with an immediate sense of urgency, 
-                highlighting potential revenue growth or time saved. 
-             2) Offer tangible, high-impact suggestions:
-                - No-cost or low-cost marketing tactics 
-                - Resourceful ways to improve lead conversion 
-                - Innovative, AI-driven expansions 
-             3) Reference credible sources or proven strategies (e.g., HubSpot, 
-                Forrester, McKinsey) to bolster each suggestion.
-             4) Close with an urgent, succinct call to action prompting the user 
-                to implement these strategies quickly. 
-             Always demonstrate the business ROI and how focusing on growth now 
-             multiplies future gains.`
+            `You are October7Assist, an AI focused on educating about the October 7th attacks in Israel, the hostages, and how to counter antisemitism. Provide concise summaries, cite credible sources like ADL or AJC, and offer actionable support steps.`
         },
         {
           role: "user",
@@ -271,7 +258,7 @@ async function analyzeTextWithOpenAIStream(text, apiKey, orgId, systemPrompt = n
         {
           role: "system",
           content: systemPrompt ||
-            `You are GrowthGPT, a top-tier business growth specialist. A user has provided a business report or leads to analyze. 1) Begin with an immediate sense of urgency, highlighting potential revenue growth or time saved. 2) Offer tangible, high-impact suggestions: - No-cost or low-cost marketing tactics - Resourceful ways to improve lead conversion - Innovative, AI-driven expansions 3) Reference credible sources or proven strategies (e.g., HubSpot, Forrester, McKinsey) to bolster each suggestion. 4) Close with an urgent, succinct call to action prompting the user to implement these strategies quickly. Always demonstrate the business ROI and how focusing on growth now multiplies future gains.`
+            `You are October7Assist, an AI focused on educating about the October 7th attacks in Israel, the ongoing hostage crisis, and ways to combat antisemitism. Provide concise facts, cite credible sources such as ADL or AJC, and offer actionable guidance.`
         },
         {
           role: "user",
@@ -295,7 +282,7 @@ async function analyzeTextWithOpenAIStream(text, apiKey, orgId, systemPrompt = n
 // Cache for the latest hostage count (1 hour TTL)
 const HOSTAGE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const DEFAULT_HOSTAGE_COUNT = '50';
-const HOSTAGE_CACHE = { value: DEFAULT_HOSTAGE_COUNT, updated: 0 };
+const HOSTAGE_CACHE = { total: DEFAULT_HOSTAGE_COUNT, citation: '', updated: 0 };
 // Cache for the latest hostage news (30 min TTL)
 const NEWS_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const NEWS_CACHE = { headline: '', url: '', updated: 0 };
@@ -319,9 +306,12 @@ async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
   throw lastError;
 }
 
-// Fetch current hostage count using OpenAI's browser tool
-async function fetchHostageCountUsingBrowsing(apiKey, orgId) {
-  const res = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
+// Fetch current hostage count using the Responses API with web_search
+async function fetchHostageCountUsingWebSearch(apiKey, orgId) {
+  const today = new Date().toISOString().slice(0, 10);
+  const prompt = `As of ${today}, how many Israeli hostages remain in Gaza?\n  Provide the number and cite a source in Hebrew or English that is no more than 24 hours old.`;
+
+  const res = await fetchWithRetry('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -330,24 +320,28 @@ async function fetchHostageCountUsingBrowsing(apiKey, orgId) {
     },
     body: JSON.stringify({
       model: 'gpt-4o',
-      tools: [{ type: 'browser' }],
-      tool_choice: 'auto',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a factual assistant. Use the browser tool to search reputable news sources for the latest count of hostages held by Hamas in Gaza. Return only the number of hostages as an integer, no other words.'
-        },
-        { role: 'user', content: 'How many hostages remain in Gaza?' }
-      ],
-      max_tokens: 10
+      input: prompt,
+      tools: [{ type: 'web_search' }]
     })
   });
-  if (!res.ok) throw new Error(`OpenAI request failed: ${res.status}`);
+  if (!res.ok) throw new Error(`OpenAI web search failed: ${res.status}`);
   const data = await res.json();
-  const text = data.choices?.[0]?.message?.content || '';
-  const match = text.match(/\d+/);
-  if (!match) throw new Error('No number found');
-  return match[0];
+  const assistantMsg = data.output.find(
+    (item) => item.role === 'assistant' && item.content
+  );
+  const textSegments = assistantMsg.content.filter((seg) => seg.type === 'output_text');
+  const answerText = textSegments.map((seg) => seg.text).join('\n');
+  const match = answerText.match(/\d+/);
+  const count = match ? match[0] : null;
+  let citation = '';
+  assistantMsg.content.forEach((seg) => {
+    (seg.annotations || []).forEach((ann) => {
+      if (ann.type === 'url_citation' && !citation) {
+        citation = ann.url;
+      }
+    });
+  });
+  return { count, citation };
 }
 
 // Fetch latest hostage negotiation headline using OpenAI's browser tool
@@ -3919,18 +3913,22 @@ function getHtmlResponse(apiKey, orgId) {
       "        if (!hostageCountEl) return;",
       "        try {",
       "          hostageCountEl.textContent = 'Loading...';",
+      "          hostageCountEl.title = '';",
       "          const response = await fetch('/api/hostage-count');",
       "          if (response.ok) {",
       "            const data = await response.json();",
-      "            if (data.count) {",
+      "            if (data.count && /^\\d+$/.test(data.count)) {",
       "              hostageCountEl.textContent = data.count;",
+      "              hostageCountEl.title = data.citation ? `Source: ${data.citation}` : '';",
       "              return;",
       "            }",
       "          }",
       "          hostageCountEl.textContent = 'Unavailable';",
+      "          hostageCountEl.title = '';",
       "        } catch (error) {",
       "          console.error('Error refreshing hostage count:', error);",
       "          hostageCountEl.textContent = 'Unavailable';",
+      "          hostageCountEl.title = '';",
       "        }",
       "      }",
       "      ",
@@ -4537,7 +4535,7 @@ function getHtmlResponse(apiKey, orgId) {
 "          const dummyOutput = document.createElement('div');",
 "          dummyOutput.style.display = 'none';",
 "          document.body.appendChild(dummyOutput);",
-"          const systemPrompt = \"You are GrowthGPT, an expert in business growth and marketing. Based on the following analysis, generate a concise, compelling, and achievable call-to-action phrase (in three to five words) for a button.\";",
+"          const systemPrompt = \"You are October7Assist, an advocate for awareness of the October 7th attacks and the Israeli hostages. Based on the analysis, generate a concise 3-5 word call-to-action encouraging learning or support.\";",
 "          const userPrompt = `Analysis: ${analysisText}`;",
 "          fetchChatResponse(systemPrompt, userPrompt, dummyOutput).then(() => {",
 "            ctaButton.textContent = dummyOutput.textContent.trim() || ctaButton.textContent;",
@@ -4720,9 +4718,9 @@ function getHtmlResponse(apiKey, orgId) {
 "          const role = document.getElementById('hero-user-role').value.trim() || 'N/A';",
 "          const challenge = document.getElementById('hero-user-challenge').value.trim() || 'N/A';",
 "          const recommendation = document.getElementById('chatResponse').textContent.trim() || 'No recommendation available.';",
-          "          const ctaText = document.querySelector('.hero-cta').textContent.trim() || 'Start Free Trial';",
+          "          const ctaText = document.querySelector('.hero-cta').textContent.trim() || 'Learn More';",
 "",
-"          const systemPrompt = \"You are GrowthGPT, an expert in business growth. Respond in markdown. Provide detailed instructions for this step of a 5-step guide using the given context.\";",
+"          const systemPrompt = \"You are October7Assist, guiding users through a step-by-step educational journey about the October 7th attacks, the hostages, and combating antisemitism. Respond in markdown with detailed instructions for this step.\";",
 "          const userPrompt = `Step ${step + 1} of 5:\\nRole: ${role}\\nChallenge: ${challenge}\\nRecommendation: ${recommendation}\\nCTA: ${ctaText}\\nSelected CTA Option: ${selectedCTA}\\nProvide the content for this step.`;",
 "",
 "          const tempOutput = document.createElement('div');",
@@ -4748,9 +4746,9 @@ function getHtmlResponse(apiKey, orgId) {
 "          const role = document.getElementById('hero-user-role').value.trim() || 'N/A';",
 "          const challenge = document.getElementById('hero-user-challenge').value.trim() || 'N/A';",
 "          const recommendation = document.getElementById('chatResponse').textContent.trim() || 'No recommendation available.';",
-"          const ctaText = document.querySelector('.hero-cta').textContent.trim() || 'Start Free Trial';",
+"          const ctaText = document.querySelector('.hero-cta').textContent.trim() || 'Learn More';",
 "",
-"          const systemPrompt = \"You are GrowthGPT, an expert in business growth. Respond in markdown. Generate three distinct, concise call-to-action options as a JSON array for proceeding to the next step of a 5-step guide based on the provided context. Each option should be a short phrase (no descriptions).\";",
+"          const systemPrompt = \"You are October7Assist, an educator about the October 7th attacks and ongoing hostage crisis. Respond in markdown with three concise call-to-action options (as a JSON array) encouraging further learning or support. No descriptions.\";",
 "          const userPrompt = `Role: ${role}\\nChallenge: ${challenge}\\nRecommendation: ${recommendation}\\nCurrent CTA: ${ctaText}\\nProvide three CTA options as a JSON array.`;",
 "",
 "          const tempOutput = document.createElement('div');",
@@ -6452,30 +6450,37 @@ async function handleHeroStoryRequest(body, env) {
 
 async function handleHostageCountRequest(env) {
   const now = Date.now();
-  if (isCacheValid(HOSTAGE_CACHE, HOSTAGE_TTL_MS) && HOSTAGE_CACHE.value) {
+  if (isCacheValid(HOSTAGE_CACHE, HOSTAGE_TTL_MS) && HOSTAGE_CACHE.total) {
     return {
-      count: HOSTAGE_CACHE.value,
+      count: HOSTAGE_CACHE.total,
+      citation: HOSTAGE_CACHE.citation,
       fetched: new Date(HOSTAGE_CACHE.updated).toISOString(),
     };
   }
   try {
-    const count = await fetchHostageCountUsingBrowsing(
+    const { count, citation } = await fetchHostageCountUsingWebSearch(
       env.OPEN_API_KEY_NEW,
-      env.OPENAI_ORG_ID,
+      env.OPENAI_ORG_ID
     );
-    HOSTAGE_CACHE.value = count;
+    HOSTAGE_CACHE.total = count;
+    HOSTAGE_CACHE.citation = citation;
     HOSTAGE_CACHE.updated = now;
-    return { count, fetched: new Date(now).toISOString() };
+    return {
+      count,
+      citation,
+      fetched: new Date(now).toISOString(),
+    };
   } catch (err) {
     console.error('Hostage count fetch failed:', err);
-    if (HOSTAGE_CACHE.value) {
+    if (HOSTAGE_CACHE.total) {
       return {
-        count: HOSTAGE_CACHE.value,
+        count: HOSTAGE_CACHE.total,
+        citation: HOSTAGE_CACHE.citation,
         fetched: new Date(HOSTAGE_CACHE.updated).toISOString(),
-        error: 'Serving cached count',
+        error: 'Serving cached data',
       };
     }
-    return { count: DEFAULT_HOSTAGE_COUNT, error: 'Failed to fetch count' };
+    return { count: DEFAULT_HOSTAGE_COUNT, citation: '', error: 'Failed to fetch data' };
   }
 }
 
