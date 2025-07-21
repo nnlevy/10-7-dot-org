@@ -294,7 +294,8 @@ async function analyzeTextWithOpenAIStream(text, apiKey, orgId, systemPrompt = n
 
 // Cache for the latest hostage count (1 hour TTL)
 const HOSTAGE_TTL_MS = 60 * 60 * 1000; // 1 hour
-const HOSTAGE_CACHE = { value: '50', updated: 0 };
+const DEFAULT_HOSTAGE_COUNT = '50';
+const HOSTAGE_CACHE = { value: DEFAULT_HOSTAGE_COUNT, updated: 0 };
 // Cache for the latest hostage news (30 min TTL)
 const NEWS_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const NEWS_CACHE = { headline: '', url: '', updated: 0 };
@@ -303,9 +304,24 @@ function isCacheValid(cache, ttl) {
   return Date.now() - cache.updated < ttl && !!cache.updated;
 }
 
+async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
+  let lastError;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok) return res;
+      lastError = new Error(`Request failed: ${res.status}`);
+    } catch (err) {
+      lastError = err;
+    }
+    await new Promise((r) => setTimeout(r, backoff * (attempt + 1)));
+  }
+  throw lastError;
+}
+
 // Fetch current hostage count using OpenAI's browser tool
 async function fetchHostageCountUsingBrowsing(apiKey, orgId) {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -336,7 +352,7 @@ async function fetchHostageCountUsingBrowsing(apiKey, orgId) {
 
 // Fetch latest hostage negotiation headline using OpenAI's browser tool
 async function fetchLatestHostageNewsUsingBrowsing(apiKey, orgId) {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -3906,10 +3922,15 @@ function getHtmlResponse(apiKey, orgId) {
       "          const response = await fetch('/api/hostage-count');",
       "          if (response.ok) {",
       "            const data = await response.json();",
-      "            if (data.count) hostageCountEl.textContent = data.count;",
+      "            if (data.count) {",
+      "              hostageCountEl.textContent = data.count;",
+      "              return;",
+      "            }",
       "          }",
+      "          hostageCountEl.textContent = 'Unavailable';",
       "        } catch (error) {",
       "          console.error('Error refreshing hostage count:', error);",
+      "          hostageCountEl.textContent = 'Unavailable';",
       "        }",
       "      }",
       "      ",
@@ -6454,7 +6475,7 @@ async function handleHostageCountRequest(env) {
         error: 'Serving cached count',
       };
     }
-    return { count: '50', error: 'Failed to fetch count' };
+    return { count: DEFAULT_HOSTAGE_COUNT, error: 'Failed to fetch count' };
   }
 }
 
