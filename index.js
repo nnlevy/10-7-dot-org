@@ -285,7 +285,7 @@ const DEFAULT_HOSTAGE_COUNT = '50';
 const HOSTAGE_CACHE = { total: DEFAULT_HOSTAGE_COUNT, citation: '', updated: 0 };
 // Cache for the latest hostage news (30 min TTL)
 const NEWS_TTL_MS = 30 * 60 * 1000; // 30 minutes
-const NEWS_CACHE = { headline: '', url: '', updated: 0 };
+const NEWS_CACHE = { headline: '', url: '', updated: 0, items: [] };
 
 function isCacheValid(cache, ttl) {
   return Date.now() - cache.updated < ttl && !!cache.updated;
@@ -361,8 +361,11 @@ async function fetchHostageCountUsingWebSearch(apiKey, orgId) {
 }
 
 // Fetch latest hostage negotiation headline using the Responses API with web_search
-async function fetchLatestHostageNewsUsingWebSearch(apiKey, orgId) {
-  const prompt = 'Latest credible headline about negotiations or updates on Israeli hostages in Gaza.';
+async function fetchLatestHostageNewsUsingWebSearch(apiKey, orgId, count = 1) {
+  const plural = count && Number(count) > 1;
+  const prompt = plural
+    ? `Provide ${count} recent credible headlines about negotiations or updates on Israeli hostages in Gaza with source URLs. Respond strictly in JSON: {\"items\": [{\"headline\":\"...\",\"url\":\"...\"}]}`
+    : 'Latest credible headline about negotiations or updates on Israeli hostages in Gaza.';
   const res = await fetchWithRetry('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
@@ -390,6 +393,14 @@ async function fetchLatestHostageNewsUsingWebSearch(apiKey, orgId) {
   try {
     const textSegments = assistantMsg.content.filter((seg) => seg.type === 'output_text');
     const answerText = textSegments.map((seg) => seg.text).join('\n').trim();
+    if (plural) {
+      try {
+        const obj = JSON.parse(answerText);
+        if (Array.isArray(obj.items)) return { items: obj.items };
+        if (Array.isArray(obj)) return { items: obj };
+      } catch {}
+      return { items: [] };
+    }
     let citation = '';
     assistantMsg.content.forEach((seg) => {
       (seg.annotations || []).forEach((ann) => {
@@ -438,9 +449,10 @@ async function fetchLatestHostageNewsUsingBrowsing(apiKey, orgId) {
   }
 }
 
-async function handleLatestHostageNewsRequest(env) {
+async function handleLatestHostageNewsRequest(env, count) {
   const now = Date.now();
-  if (isCacheValid(NEWS_CACHE, NEWS_TTL_MS) && NEWS_CACHE.headline) {
+  const wantMultiple = count && Number(count) > 1;
+  if (!wantMultiple && isCacheValid(NEWS_CACHE, NEWS_TTL_MS) && NEWS_CACHE.headline) {
     return {
       headline: NEWS_CACHE.headline,
       url: NEWS_CACHE.url,
@@ -451,10 +463,18 @@ async function handleLatestHostageNewsRequest(env) {
     const news = await fetchLatestHostageNewsUsingWebSearch(
       env.OPEN_API_KEY_NEW,
       env.OPENAI_ORG_ID,
+      count
     );
+    NEWS_CACHE.updated = now;
+    if (wantMultiple) {
+      NEWS_CACHE.items = news.items;
+      return {
+        items: news.items || [],
+        fetched: new Date(now).toISOString(),
+      };
+    }
     NEWS_CACHE.headline = news.headline;
     NEWS_CACHE.url = news.url;
-    NEWS_CACHE.updated = now;
     return {
       headline: news.headline,
       url: news.url,
@@ -462,6 +482,13 @@ async function handleLatestHostageNewsRequest(env) {
     };
   } catch (err) {
     console.error('News fetch failed:', err);
+    if (wantMultiple && NEWS_CACHE.items && NEWS_CACHE.items.length) {
+      return {
+        items: NEWS_CACHE.items,
+        fetched: new Date(NEWS_CACHE.updated).toISOString(),
+        error: 'Serving cached news',
+      };
+    }
     if (NEWS_CACHE.headline) {
       return {
         headline: NEWS_CACHE.headline,
@@ -1183,6 +1210,26 @@ function getHtmlResponse(apiKey, orgId) {
 ".latest-news a {",
 "        color: var(--background-color);",
 "        text-decoration: underline;",
+"      }",
+"#latest-news {",
+"        overflow: hidden;",
+"        position: relative;",
+"      }",
+".news-marquee {",
+"        display: inline-block;",
+"        white-space: nowrap;",
+"        animation: news-scroll 25s linear infinite;",
+"      }",
+"#latest-news:hover .news-marquee {",
+"        animation-play-state: paused;",
+"      }",
+".separator {",
+"        margin: 0 0.75rem;",
+"        color: var(--hero-subheadline-color);",
+"      }",
+"@keyframes news-scroll {",
+"        from { transform: translateX(0); }",
+"        to { transform: translateX(-50%); }",
 "      }",
 ".news-timestamp {",
 "        display: block;",
@@ -4004,12 +4051,13 @@ function getHtmlResponse(apiKey, orgId) {
 "        const newsEl = document.getElementById('latest-news');",
 "        if (!newsEl) return;",
 "        try {",
-"          const response = await fetch('/api/latest-hostage-news');",
+"          const response = await fetch('/api/latest-hostage-news?count=5');",
 "          if (response.ok) {",
 "            const data = await response.json();",
-"            if (data.headline) {",
-"              const date = new Date(data.fetched).toLocaleString();",
-"              newsEl.innerHTML = `<a href=\"${data.url}\" target=\"_blank\" rel=\"noopener noreferrer\">${data.headline}</a><span class=\"news-timestamp\"> ${date}</span>`;",
+"            const items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : (data.headline ? [{ headline: data.headline, url: data.url }] : []));",
+"            if (items.length > 0) {",
+"              const headlines = items.concat(items).map(item => `<a href=\"${item.url}\" target=\"_blank\" rel=\"noopener noreferrer\">${item.headline}</a>`).join('<span class=\"separator\">|</span>');",
+"              newsEl.innerHTML = `<div class=\"news-marquee\">${headlines}</div>`;",
 "            } else if (data.error) {",
 "              newsEl.textContent = data.error;",
 "            } else {",
@@ -6821,7 +6869,8 @@ export default {
       }
 
       if (request.method === "GET" && url.pathname === "/api/latest-hostage-news") {
-        const news = await handleLatestHostageNewsRequest(env);
+        const countParam = url.searchParams.get('count');
+        const news = await handleLatestHostageNewsRequest(env, countParam ? parseInt(countParam, 10) : undefined);
         return new Response(
           JSON.stringify(news),
           {
