@@ -2,7 +2,7 @@
 
 > **“Education is the kindling of a flame, not the filling of a vessel.”** — *Plutarch*
 > 
-> 10–7.org embraces this idea: it uses AI to spark understanding and compassion around the events of **October 7 2023** and the ongoing hostage crisis.  
+> 10–7.org embraces this idea: it uses AI to spark understanding and compassion around the events of **Saturday, October 7, 2023** and the ongoing hostage crisis.  
 >
 > By weaving together verified facts, personal stories and data‑driven insights, the project aims to **illuminate dark corners of ignorance and hatred** and empower visitors to take meaningful action.
 
