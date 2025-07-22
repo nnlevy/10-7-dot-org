@@ -308,6 +308,9 @@ async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
 
 // Fetch current hostage count using the Responses API with web_search
 async function fetchHostageCountUsingWebSearch(apiKey, orgId) {
+  if (!apiKey || !orgId) {
+    return { count: DEFAULT_HOSTAGE_COUNT, citation: '', error: 'Missing OpenAI credentials' };
+  }
   const today = new Date().toISOString().slice(0, 10);
   const prompt = `As of ${today}, how many Israeli hostages remain in Gaza?\n  Provide the number and cite a source in Hebrew or English that is no more than 24 hours old.`;
 
@@ -344,9 +347,15 @@ async function fetchHostageCountUsingWebSearch(apiKey, orgId) {
   return { count, citation };
 }
 
-// Fetch latest hostage negotiation headline using OpenAI's browser tool
-async function fetchLatestHostageNewsUsingBrowsing(apiKey, orgId) {
-  const res = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
+// Fetch latest hostage negotiation headline using the Responses API with web_search
+async function fetchLatestHostageNewsUsingWebSearch(apiKey, orgId) {
+  if (!apiKey || !orgId) {
+    return { headline: '', url: '', error: 'Missing OpenAI credentials' };
+  }
+
+  const prompt = 'What is the most recent credible headline about negotiations or updates on Israeli hostages in Gaza? Provide the headline and URL.';
+
+  const res = await fetchWithRetry('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -355,27 +364,27 @@ async function fetchLatestHostageNewsUsingBrowsing(apiKey, orgId) {
     },
     body: JSON.stringify({
       model: 'gpt-4o',
-      tools: [{ type: 'browser' }],
-      tool_choice: 'auto',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a factual assistant. Use the browser tool to find the most recent credible headline about negotiations or updates on Israeli hostages in Gaza. Respond strictly in JSON with keys "headline" and "url".'
-        },
-        { role: 'user', content: 'Latest hostage negotiation news?' }
-      ],
-      max_tokens: 100
+      input: prompt,
+      tools: [{ type: 'web_search' }]
     })
   });
-  if (!res.ok) throw new Error(`OpenAI request failed: ${res.status}`);
+  if (!res.ok) throw new Error(`OpenAI web search failed: ${res.status}`);
   const data = await res.json();
-  const text = data.choices?.[0]?.message?.content || '';
-  try {
-    const obj = JSON.parse(text);
-    return { headline: obj.headline || '', url: obj.url || '' };
-  } catch {
-    return { headline: text, url: '' };
-  }
+  const assistantMsg = data.output.find(
+    (item) => item.role === 'assistant' && item.content
+  );
+  const textSegments = assistantMsg.content.filter((seg) => seg.type === 'output_text');
+  const answerText = textSegments.map((seg) => seg.text).join('\n');
+  let url = '';
+  assistantMsg.content.forEach((seg) => {
+    (seg.annotations || []).forEach((ann) => {
+      if (ann.type === 'url_citation' && !url) {
+        url = ann.url;
+      }
+    });
+  });
+  const headline = answerText.split('\n')[0].trim();
+  return { headline, url };
 }
 
 async function handleLatestHostageNewsRequest(env) {
@@ -388,10 +397,13 @@ async function handleLatestHostageNewsRequest(env) {
     };
   }
   try {
-    const news = await fetchLatestHostageNewsUsingBrowsing(
+    const news = await fetchLatestHostageNewsUsingWebSearch(
       env.OPEN_API_KEY_NEW,
-      env.OPENAI_ORG_ID,
+      env.OPENAI_ORG_ID
     );
+    if (news.error) {
+      throw new Error(news.error);
+    }
     NEWS_CACHE.headline = news.headline;
     NEWS_CACHE.url = news.url;
     NEWS_CACHE.updated = now;
@@ -3950,10 +3962,8 @@ function getHtmlResponse(apiKey, orgId) {
 "            if (data.headline) {",
 "              const date = new Date(data.fetched).toLocaleString();",
 "              newsEl.innerHTML = `<a href=\"${data.url}\" target=\"_blank\" rel=\"noopener noreferrer\">${data.headline}</a><span class=\"news-timestamp\"> ${date}</span>`;",
-"            } else if (data.error) {",
-"              newsEl.textContent = data.error;",
 "            } else {",
-"              newsEl.textContent = 'No news available';",
+"              newsEl.textContent = data.error || 'News unavailable';",
 "            }",
 "          } else {",
 "            newsEl.textContent = 'News unavailable';",
