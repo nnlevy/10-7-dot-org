@@ -326,22 +326,76 @@ async function fetchHostageCountUsingWebSearch(apiKey, orgId) {
   });
   if (!res.ok) throw new Error(`OpenAI web search failed: ${res.status}`);
   const data = await res.json();
+  if (!Array.isArray(data.output)) {
+    return { error: 'Invalid API response' };
+  }
   const assistantMsg = data.output.find(
     (item) => item.role === 'assistant' && item.content
   );
-  const textSegments = assistantMsg.content.filter((seg) => seg.type === 'output_text');
-  const answerText = textSegments.map((seg) => seg.text).join('\n');
-  const match = answerText.match(/\d+/);
-  const count = match ? match[0] : null;
-  let citation = '';
-  assistantMsg.content.forEach((seg) => {
-    (seg.annotations || []).forEach((ann) => {
-      if (ann.type === 'url_citation' && !citation) {
-        citation = ann.url;
-      }
+  if (!assistantMsg || !assistantMsg.content) {
+    return { error: 'Invalid API response' };
+  }
+  try {
+    const textSegments = assistantMsg.content.filter((seg) => seg.type === 'output_text');
+    const answerText = textSegments.map((seg) => seg.text).join('\n');
+    const match = answerText.match(/\d+/);
+    const count = match ? match[0] : null;
+    let citation = '';
+    assistantMsg.content.forEach((seg) => {
+      (seg.annotations || []).forEach((ann) => {
+        if (ann.type === 'url_citation' && !citation) {
+          citation = ann.url;
+        }
+      });
     });
+    return { count, citation };
+  } catch {
+    return { error: 'Invalid API response' };
+  }
+}
+
+// Fetch latest hostage negotiation headline using the Responses API with web_search
+async function fetchLatestHostageNewsUsingWebSearch(apiKey, orgId) {
+  const prompt = 'Latest credible headline about negotiations or updates on Israeli hostages in Gaza.';
+  const res = await fetchWithRetry('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+      'OpenAI-Organization': orgId,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      input: prompt,
+      tools: [{ type: 'web_search' }],
+    }),
   });
-  return { count, citation };
+  if (!res.ok) throw new Error(`OpenAI web search failed: ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data.output)) {
+    return { error: 'Invalid API response' };
+  }
+  const assistantMsg = data.output.find(
+    (item) => item.role === 'assistant' && item.content
+  );
+  if (!assistantMsg || !assistantMsg.content) {
+    return { error: 'Invalid API response' };
+  }
+  try {
+    const textSegments = assistantMsg.content.filter((seg) => seg.type === 'output_text');
+    const answerText = textSegments.map((seg) => seg.text).join('\n').trim();
+    let citation = '';
+    assistantMsg.content.forEach((seg) => {
+      (seg.annotations || []).forEach((ann) => {
+        if (ann.type === 'url_citation' && !citation) {
+          citation = ann.url;
+        }
+      });
+    });
+    return { headline: answerText, url: citation };
+  } catch {
+    return { error: 'Invalid API response' };
+  }
 }
 
 // Fetch latest hostage negotiation headline using OpenAI's browser tool
@@ -388,7 +442,7 @@ async function handleLatestHostageNewsRequest(env) {
     };
   }
   try {
-    const news = await fetchLatestHostageNewsUsingBrowsing(
+    const news = await fetchLatestHostageNewsUsingWebSearch(
       env.OPEN_API_KEY_NEW,
       env.OPENAI_ORG_ID,
     );
