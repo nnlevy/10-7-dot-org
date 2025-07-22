@@ -6,8 +6,6 @@
 >
 > By weaving together verified facts, personal stories and data‑driven insights, the project aims to **illuminate dark corners of ignorance and hatred** and empower visitors to take meaningful action.
 
-![AI‑powered education illustration](docs/education-ai.png)
-
 ## Demo
 
 The live application is available at **[10‑7.org](https://10-7.org)**.  
