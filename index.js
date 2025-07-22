@@ -547,13 +547,18 @@ async function handleLatestHostageNewsRequest(env, count) {
  * 2) LOCATION & FILE UPLOAD HANDLERS
  *************************************************************/
 function validateFile(file) {
+  const allowedTypes = [
+    'application/pdf',
+    'text/plain',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ];
   if (
     !file ||
-    !file.type.includes("pdf") ||
+    !allowedTypes.includes(file.type) ||
     file.size === 0 ||
     file.size > 10 * 1024 * 1024
   ) {
-    console.error("File validation failed.");
+    console.error('File validation failed.');
     return false;
   }
   return true;
@@ -710,7 +715,7 @@ function validateEnv(env) {
   });
 }
 
-function getHtmlResponse(apiKey, orgId) {
+function getHtmlResponse() {
   return [
 "<!DOCTYPE html>",
 "<html lang=\"en\">",
@@ -3299,6 +3304,15 @@ function getHtmlResponse(apiKey, orgId) {
       "      }",
       "      ",
       "      /* =================================================== */",
+      "      .loading-skeleton {",
+      "        background: linear-gradient(90deg, #eee 25%, #ddd 37%, #eee 63%);",
+      "        background-size: 400% 100%;",
+      "        animation: skeleton 1.2s ease-in-out infinite;",
+      "      }",
+      "      @keyframes skeleton {",
+      "        0% { background-position: 100% 0; }",
+      "        100% { background-position: 0 0; }",
+      "      }",
       "      /* End Modal Overlay Styling */",
       "      /* =================================================== */",
       "      ",
@@ -3989,15 +4003,6 @@ function getHtmlResponse(apiKey, orgId) {
 "      getCurrentCTAVariant: function() {",
 "        return localStorage.getItem('ctaVariant') || 'A';",
 "      }",
-"      .loading-skeleton {",
-"        background: linear-gradient(90deg, #eee 25%, #ddd 37%, #eee 63%);",
-"        background-size: 400% 100%;",
-"        animation: skeleton 1.2s ease-in-out infinite;",
-"      }",
-"      @keyframes skeleton {",
-"        0% { background-position: 100% 0; }",
-"        100% { background-position: 0 0; }",
-"      }",
 "    };",
 "    ",
 "    // Enhanced error handling with user-friendly messages",
@@ -4112,8 +4117,6 @@ function getHtmlResponse(apiKey, orgId) {
 "          navToggle.click();",
 "        }",
 "      });",
-"      const apiKey = \"" + apiKey + "\";",
-"      const orgId = \"" + orgId + "\";",
       "      let apiDisabled = false;",
       "      ",
       "      // Days since October 7, 2023 counter",
@@ -4146,25 +4149,23 @@ function getHtmlResponse(apiKey, orgId) {
 "              return;",
       "            }",
       "          }",
-"          hostageCountEl.textContent = offlineData.hostageCount || 'Unavailable';",
+"          hostageCountEl.textContent = offlineData.hostageCount || 'Hostage count unavailable—try again later';",
 "          hostageCountEl.title = offlineData.hostageCount ? 'offline data' : '';",
 "          if (infoContainer) { const count = hostageCountEl.textContent.replace(/[^\\d]/g, '') || '50'; infoContainer.innerHTML = `Day <strong id=\\\"dayCountNum\\\" class=\\\"day-count\\\">${document.getElementById('dayCountNum')?.textContent || ''}</strong> | <span id=\\\"hostageCount\\\">${count}</span> hostages remain (at least 20 believed alive)`; }",
 "        } catch (error) {",
 "          console.error('Error refreshing hostage count:', error);",
-"          hostageCountEl.textContent = offlineData.hostageCount || 'Unavailable';",
+"          hostageCountEl.textContent = offlineData.hostageCount || 'Hostage count unavailable—try again later';",
 "          hostageCountEl.title = offlineData.hostageCount ? 'offline data' : '';",
 "          if (infoContainer) { const count = hostageCountEl.textContent.replace(/[^\\d]/g, '') || '50'; infoContainer.innerHTML = `Day <strong id=\\\"dayCountNum\\\" class=\\\"day-count\\\">${document.getElementById('dayCountNum')?.textContent || ''}</strong> | <span id=\\\"hostageCount\\\">${count}</span> hostages remain (at least 20 believed alive)`; }",
 "        }",
       "      }",
       "      ",
-      "      // Initialize counters",
-      "      updateDaysSinceOct7();",
-      "      refreshHostageCount();",
-      "      ",
-      "      // Update day counter every hour",
-"      setInterval(updateDaysSinceOct7, 3600000);",
-"      // Update hostage count every 6 hours",
-"      setInterval(refreshHostageCount, 21600000);",
+"      document.addEventListener('DOMContentLoaded', () => {",
+"        updateDaysSinceOct7();",
+"        refreshHostageCount();",
+"        setInterval(updateDaysSinceOct7, 3600000);",
+"        setInterval(refreshHostageCount, 21600000);",
+"      });",
 "      async function loadLatestNews() {",
 "        const newsEl = document.getElementById('latest-news');",
 "        if (!newsEl) return;",
@@ -5525,11 +5526,11 @@ function getHtmlResponse(apiKey, orgId) {
 "        const cached = localStorage.getItem(cacheKey);",
 "        answerOutput.classList.remove('hidden');",
 "        if (cached) {",
-"          answerOutput.innerHTML = 'Our AI couldn\'t respond right now; showing a previous answer.' + cached;",
+"          answerOutput.innerHTML = 'AI unavailable—showing a previous answer.' + cached;",
 "          answerOutput.style.color = '#333';",
 "        } else {",
 "          const fallback = offlineData.stories && offlineData.stories[0] ? offlineData.stories[0].summary : 'Please try again later.';",
-"          answerOutput.innerHTML = 'Our AI could not respond. ' + fallback;",
+"          answerOutput.innerHTML = 'AI service is currently unavailable. ' + fallback;",
 "          answerOutput.style.color = '#e53935';",
 "        }",
 "        answerOutput.classList.remove('loading-skeleton');",
@@ -5595,11 +5596,10 @@ function getHtmlResponse(apiKey, orgId) {
 "        storyOutput.classList.remove('hidden');",
 "        storyOutput.classList.remove('loading-skeleton');",
 "        if (cached) {",
-"          storyOutput.innerHTML = 'Our AI couldn\\'t respond; showing last story.' + cached;",
-"          storyOutput.style.color = '#333';",
+"          storyOutput.innerHTML = 'AI unavailable—showing last story.' + cached;",
 "        } else {",
 "          const fallback = offlineData.stories && offlineData.stories[0] ? offlineData.stories[0].summary : 'Please try again later.';",
-"          storyOutput.innerHTML = 'Our AI could not respond. ' + fallback;",
+"          storyOutput.innerHTML = 'AI service is currently unavailable. ' + fallback;",
 "          storyOutput.style.color = '#e53935';",
 "        }",
 "      } finally {",
@@ -6758,26 +6758,22 @@ async function handleHeroStoryRequest(body, env) {
 
 async function handleHostageCountRequest(env) {
   const now = Date.now();
-  if (isCacheValid(HOSTAGE_CACHE, HOSTAGE_TTL_MS) && HOSTAGE_CACHE.total) {
-    return {
-      count: HOSTAGE_CACHE.total,
-      citation: HOSTAGE_CACHE.citation,
-      fetched: new Date(HOSTAGE_CACHE.updated).toISOString(),
-    };
-  }
   try {
     const { count, citation } = await fetchHostageCountUsingWebSearch(
       env.OPEN_API_KEY_NEW,
       env.OPENAI_ORG_ID
     );
-    HOSTAGE_CACHE.total = count;
-    HOSTAGE_CACHE.citation = citation;
-    HOSTAGE_CACHE.updated = now;
-    return {
-      count,
-      citation,
-      fetched: new Date(now).toISOString(),
-    };
+    if (count) {
+      HOSTAGE_CACHE.total = count;
+      HOSTAGE_CACHE.citation = citation;
+      HOSTAGE_CACHE.updated = now;
+      return {
+        count,
+        citation,
+        fetched: new Date(now).toISOString(),
+      };
+    }
+    throw new Error('Invalid response');
   } catch (err) {
     console.error('Hostage count fetch failed:', err);
     if (HOSTAGE_CACHE.total) {
@@ -6785,7 +6781,7 @@ async function handleHostageCountRequest(env) {
         count: HOSTAGE_CACHE.total,
         citation: HOSTAGE_CACHE.citation,
         fetched: new Date(HOSTAGE_CACHE.updated).toISOString(),
-        error: 'Serving cached data',
+        error: 'Using cached count',
       };
     }
     return { count: DEFAULT_HOSTAGE_COUNT, citation: '', error: 'Failed to fetch data' };
@@ -7083,7 +7079,7 @@ export default {
       }
 
       if (request.method === "GET") {
-        return new Response(getHtmlResponse(env.OPEN_API_KEY_NEW, env.OPENAI_ORG_ID), {
+        return new Response(getHtmlResponse(), {
           headers: { "Content-Type": "text/html" }
         });
       }
