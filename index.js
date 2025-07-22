@@ -338,8 +338,14 @@ async function fetchHostageCountUsingWebSearch(apiKey, orgId) {
   try {
     const textSegments = assistantMsg.content.filter((seg) => seg.type === 'output_text');
     const answerText = textSegments.map((seg) => seg.text).join('\n');
-    const match = answerText.match(/\d+/);
-    const count = match ? match[0] : null;
+    // Prefer the number that appears near the word "hostage" to avoid
+    // accidentally picking a date (e.g. "July 22, 2024")
+    let countMatch = answerText.match(/(\d+)\s*(?=\w*\s*(?:hostage|hostages|captives|captors))/i);
+    if (!countMatch) {
+      // Fallback: use the first number in the response
+      countMatch = answerText.match(/\d+/);
+    }
+    const count = countMatch ? countMatch[1] : null;
     let citation = '';
     assistantMsg.content.forEach((seg) => {
       (seg.annotations || []).forEach((ann) => {
