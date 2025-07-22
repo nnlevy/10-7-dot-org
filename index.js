@@ -452,6 +452,7 @@ async function fetchLatestHostageNewsUsingBrowsing(apiKey, orgId) {
 async function handleLatestHostageNewsRequest(env, count) {
   const now = Date.now();
   const wantMultiple = count && Number(count) > 1;
+  // Serve cached single headline when valid
   if (!wantMultiple && isCacheValid(NEWS_CACHE, NEWS_TTL_MS) && NEWS_CACHE.headline) {
     return {
       headline: NEWS_CACHE.headline,
@@ -460,28 +461,62 @@ async function handleLatestHostageNewsRequest(env, count) {
     };
   }
   try {
-    const news = await fetchLatestHostageNewsUsingWebSearch(
+    // Attempt to fetch using the web_search tool
+    let news = await fetchLatestHostageNewsUsingWebSearch(
       env.OPEN_API_KEY_NEW,
       env.OPENAI_ORG_ID,
       count
     );
-    NEWS_CACHE.updated = now;
+
+    // Handle multi-item responses
     if (wantMultiple) {
-      NEWS_CACHE.items = news.items;
-      return {
-        items: news.items || [],
-        fetched: new Date(now).toISOString(),
-      };
+      let items = Array.isArray(news.items)
+        ? news.items.filter((i) => i && i.headline)
+        : [];
+      // If not enough items, fall back to browsing until count unique items
+      while (items.length < Number(count)) {
+        const fallback = await fetchLatestHostageNewsUsingBrowsing(
+          env.OPEN_API_KEY_NEW,
+          env.OPENAI_ORG_ID
+        );
+        if (!fallback.headline) break;
+        if (!items.some((it) => it.headline === fallback.headline)) {
+          items.push({ headline: fallback.headline, url: fallback.url });
+        } else {
+          break; // avoid infinite loop
+        }
+      }
+      if (items.length > 0) {
+        NEWS_CACHE.items = items;
+        NEWS_CACHE.updated = now;
+        return { items, fetched: new Date(now).toISOString() };
+      }
+    } else {
+      // Fallback for single item if web_search returned nothing
+      if (!news || !news.headline) {
+        const fallback = await fetchLatestHostageNewsUsingBrowsing(
+          env.OPEN_API_KEY_NEW,
+          env.OPENAI_ORG_ID
+        );
+        news = { headline: fallback.headline, url: fallback.url };
+      }
+      if (news && news.headline) {
+        NEWS_CACHE.headline = news.headline;
+        NEWS_CACHE.url = news.url;
+        NEWS_CACHE.updated = now;
+        return {
+          headline: news.headline,
+          url: news.url,
+          fetched: new Date(now).toISOString(),
+        };
+      }
     }
-    NEWS_CACHE.headline = news.headline;
-    NEWS_CACHE.url = news.url;
-    return {
-      headline: news.headline,
-      url: news.url,
-      fetched: new Date(now).toISOString(),
-    };
+
+    // Throw to trigger cache return on failure
+    throw new Error('Empty response');
   } catch (err) {
     console.error('News fetch failed:', err);
+    // Serve cached multi-item list
     if (wantMultiple && NEWS_CACHE.items && NEWS_CACHE.items.length) {
       return {
         items: NEWS_CACHE.items,
@@ -489,6 +524,7 @@ async function handleLatestHostageNewsRequest(env, count) {
         error: 'Serving cached news',
       };
     }
+    // Serve cached single headline
     if (NEWS_CACHE.headline) {
       return {
         headline: NEWS_CACHE.headline,
