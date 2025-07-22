@@ -467,6 +467,10 @@ async function handleLatestHostageNewsRequest(env, count) {
       env.OPENAI_ORG_ID,
       count
     );
+    // Normalize error responses to empty results
+    if (news && news.error) {
+      news = wantMultiple ? { items: [] } : { headline: '', url: '' };
+    }
 
     // Handle multi-item responses
     if (wantMultiple) {
@@ -474,16 +478,16 @@ async function handleLatestHostageNewsRequest(env, count) {
         ? news.items.filter((i) => i && i.headline)
         : [];
       // If not enough items, fall back to browsing until count unique items
-      while (items.length < Number(count)) {
+      let attempts = 0;
+      const maxAttempts = Number(count) * 2;
+      while (items.length < Number(count) && attempts < maxAttempts) {
         const fallback = await fetchLatestHostageNewsUsingBrowsing(
           env.OPEN_API_KEY_NEW,
           env.OPENAI_ORG_ID
         );
-        if (!fallback.headline) break;
-        if (!items.some((it) => it.headline === fallback.headline)) {
+        attempts++;
+        if (fallback.headline && !items.some((it) => it.headline === fallback.headline)) {
           items.push({ headline: fallback.headline, url: fallback.url });
-        } else {
-          break; // avoid infinite loop
         }
       }
       if (items.length > 0) {
@@ -533,7 +537,9 @@ async function handleLatestHostageNewsRequest(env, count) {
         error: 'Serving cached news',
       };
     }
-    return { error: 'Failed to fetch news' };
+    return wantMultiple
+      ? { items: [], fetched: new Date(now).toISOString() }
+      : { headline: '', url: '', fetched: new Date(now).toISOString() };
   }
 }
 
@@ -4094,8 +4100,6 @@ function getHtmlResponse(apiKey, orgId) {
 "            if (items.length > 0) {",
 "              const headlines = items.concat(items).map(item => `<a href=\"${item.url}\" target=\"_blank\" rel=\"noopener noreferrer\">${item.headline}</a>`).join('<span class=\"separator\">|</span>');",
 "              newsEl.innerHTML = `<div class=\"news-marquee\">${headlines}</div>`;",
-"            } else if (data.error) {",
-"              newsEl.textContent = data.error;",
 "            } else {",
 "              newsEl.textContent = 'No news available';",
 "            }",
