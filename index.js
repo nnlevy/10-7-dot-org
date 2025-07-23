@@ -346,6 +346,7 @@ async function fetchHostageCountUsingWebSearch(apiKey, orgId) {
       countMatch = answerText.match(/\d+/);
     }
     const count = countMatch ? countMatch[1] : null;
+
     let citation = '';
     assistantMsg.content.forEach((seg) => {
       (seg.annotations || []).forEach((ann) => {
@@ -354,7 +355,52 @@ async function fetchHostageCountUsingWebSearch(apiKey, orgId) {
         }
       });
     });
-    return { count, citation };
+
+    // Validate citation domain against known credible sources
+    const credibleDomains = [
+      'nytimes.com',
+      'washingtonpost.com',
+      'apnews.com',
+      'reuters.com',
+      'bbc.com',
+      'cnn.com',
+      'theguardian.com',
+      'haaretz.com',
+      'timesofisrael.com',
+      'ynetnews.com',
+      'jpost.com',
+      'hostagesandmissingfamiliesforum.com',
+      'familiesforum.com'
+    ];
+
+    let isCredible = false;
+    try {
+      const hostname = new URL(citation).hostname.replace(/^www\./, '');
+      isCredible = credibleDomains.some((d) => hostname.endsWith(d));
+    } catch {
+      isCredible = false;
+    }
+
+    // Attempt to parse a date from the answer text
+    let dateMatch = answerText.match(/(20\d{2}-\d{2}-\d{2})/);
+    if (!dateMatch) {
+      dateMatch = answerText.match(/(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+20\d{2}/i);
+    }
+    if (!dateMatch) {
+      dateMatch = answerText.match(/\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+20\d{2}/i);
+    }
+    let isRecent = false;
+    if (dateMatch) {
+      const parsedDate = new Date(dateMatch[0]);
+      if (!isNaN(parsedDate.getTime())) {
+        isRecent = Date.now() - parsedDate.getTime() < 24 * 60 * 60 * 1000;
+      }
+    }
+
+    if (count && isCredible && isRecent) {
+      return { count, citation };
+    }
+    return { error: 'Stale or unverified data' };
   } catch {
     return { error: 'Invalid API response' };
   }
@@ -4144,20 +4190,22 @@ function getHtmlResponse() {
       "            const data = await response.json();",
 "            if (data.count && /^\\d+$/.test(data.count)) {",
 "              hostageCountEl.textContent = data.count;",
-"              hostageCountEl.title = data.citation ? `Source: ${data.citation}` : '';",
-"              if (infoContainer) infoContainer.innerHTML = `Day <strong id=\\\"dayCountNum\\\" class=\\\"day-count\\\">${document.getElementById('dayCountNum')?.textContent || ''}</strong> | <span id=\\\"hostageCount\\\">${data.count}</span> hostages remain (at least 20 believed alive)`;",
+"              hostageCountEl.title = data.citation || '';",
+"              if (infoContainer) infoContainer.innerHTML = `Day <strong id=\\\"dayCountNum\\\" class=\\\"day-count\\\">${document.getElementById('dayCountNum')?.textContent || ''}</strong> | <span id=\\\"hostageCount\\\" title=\\\"${data.citation || ''}\\\">${data.count}</span> hostages remain (at least 20 believed alive)`;",
 "              return;",
       "            }",
       "          }",
-"          hostageCountEl.textContent = offlineData.hostageCount || 'Hostage count unavailable—try again later';",
-"          hostageCountEl.title = offlineData.hostageCount ? 'offline data' : '';",
-"          if (infoContainer) { const count = hostageCountEl.textContent.replace(/[^\\d]/g, '') || '50'; infoContainer.innerHTML = `Day <strong id=\\\"dayCountNum\\\" class=\\\"day-count\\\">${document.getElementById('dayCountNum')?.textContent || ''}</strong> | <span id=\\\"hostageCount\\\">${count}</span> hostages remain (at least 20 believed alive)`; }",
-"        } catch (error) {",
-"          console.error('Error refreshing hostage count:', error);",
-"          hostageCountEl.textContent = offlineData.hostageCount || 'Hostage count unavailable—try again later';",
-"          hostageCountEl.title = offlineData.hostageCount ? 'offline data' : '';",
-"          if (infoContainer) { const count = hostageCountEl.textContent.replace(/[^\\d]/g, '') || '50'; infoContainer.innerHTML = `Day <strong id=\\\"dayCountNum\\\" class=\\\"day-count\\\">${document.getElementById('dayCountNum')?.textContent || ''}</strong> | <span id=\\\"hostageCount\\\">${count}</span> hostages remain (at least 20 believed alive)`; }",
-"        }",
+"          hostageCountEl.textContent = 'Hostage count unavailable—try again later';",
+"          hostageCountEl.title = '';",
+"          if (offlineData.hostageCount) { hostageCountEl.textContent = offlineData.hostageCount; hostageCountEl.title = 'offline data'; }",
+"          if (infoContainer) { const count = hostageCountEl.textContent.replace(/[^\\d]/g, '') || '50'; infoContainer.innerHTML = `Day <strong id=\\\"dayCountNum\\\" class=\\\"day-count\\\">${document.getElementById('dayCountNum')?.textContent || ''}</strong> | <span id=\\\"hostageCount\\\" title=\\\"${hostageCountEl.title}\\\">${count}</span> hostages remain (at least 20 believed alive)`; }",
+      "        } catch (error) {",
+      "          console.error('Error refreshing hostage count:', error);",
+"          hostageCountEl.textContent = 'Hostage count unavailable—try again later';",
+"          hostageCountEl.title = '';",
+"          if (offlineData.hostageCount) { hostageCountEl.textContent = offlineData.hostageCount; hostageCountEl.title = 'offline data'; }",
+"          if (infoContainer) { const count = hostageCountEl.textContent.replace(/[^\\d]/g, '') || '50'; infoContainer.innerHTML = `Day <strong id=\\\"dayCountNum\\\" class=\\\"day-count\\\">${document.getElementById('dayCountNum')?.textContent || ''}</strong> | <span id=\\\"hostageCount\\\" title=\\\"${hostageCountEl.title}\\\">${count}</span> hostages remain (at least 20 believed alive)`; }",
+      "        }",
       "      }",
       "      ",
 "      document.addEventListener('DOMContentLoaded', () => {",
@@ -6779,6 +6827,7 @@ async function handleHostageCountRequest(env) {
         count,
         citation,
         fetched: new Date(now).toISOString(),
+        cached: false,
       };
     }
     throw new Error('Invalid response');
@@ -6789,10 +6838,17 @@ async function handleHostageCountRequest(env) {
         count: HOSTAGE_CACHE.total,
         citation: HOSTAGE_CACHE.citation,
         fetched: new Date(HOSTAGE_CACHE.updated).toISOString(),
+        cached: true,
         error: 'Using cached count',
       };
     }
-    return { count: DEFAULT_HOSTAGE_COUNT, citation: '', error: 'Failed to fetch data' };
+    return {
+      count: DEFAULT_HOSTAGE_COUNT,
+      citation: '',
+      fetched: new Date(now).toISOString(),
+      cached: false,
+      error: 'Failed to fetch data'
+    };
   }
 }
 
