@@ -3968,7 +3968,7 @@ function getHtmlResponse() {
 "    };",
 "    ",
 "    function shareFeedbackHTML() {",
-"      return '<div class=\"share-feedback\"><button class=\"share-btn\" aria-label=\"Share response\" onclick=\"navigator.share?navigator.share({text:document.getElementById(\'answerOutput\').innerText,url:window.location.href}):window.open(\'mailto:?subject=10-7.org%20info&body=\'+encodeURIComponent(document.getElementById(\'answerOutput\').innerText))\">Share</button> <span>Was this helpful?</span> <button onclick=\"actionTracker.track(\'helpful\');this.textContent=\'Thanks!\'\">Yes</button></div>';",
+"      return `<div class=\"share-feedback\"><button class=\"share-btn\" aria-label=\"Share response\" onclick=\"navigator.share?navigator.share({text:document.getElementById('answerOutput').innerText,url:window.location.href}):window.open('mailto:?subject=10-7.org%20info&body=' + encodeURIComponent(document.getElementById('answerOutput').innerText))\">Share</button> <span>Was this helpful?</span> <button onclick=\"actionTracker.track('helpful');this.textContent='Thanks!'\">Yes</button></div>`;",
 "    }",
 "    ",
 "    // A/B Testing: CTA variants for conversion optimization",
@@ -6758,6 +6758,14 @@ async function handleHeroStoryRequest(body, env) {
 
 async function handleHostageCountRequest(env) {
   const now = Date.now();
+  if (isCacheValid(HOSTAGE_CACHE, HOSTAGE_TTL_MS) && HOSTAGE_CACHE.total) {
+    return {
+      count: HOSTAGE_CACHE.total,
+      citation: HOSTAGE_CACHE.citation,
+      fetched: new Date(HOSTAGE_CACHE.updated).toISOString(),
+      cached: true,
+    };
+  }
   try {
     const { count, citation } = await fetchHostageCountUsingWebSearch(
       env.OPEN_API_KEY_NEW,
