@@ -762,6 +762,9 @@ function validateEnv(env) {
 }
 
 function getHtmlResponse() {
+  const daysSinceOct7 = Math.floor(
+    (Date.now() - Date.UTC(2023, 9, 7)) / (1000 * 60 * 60 * 24)
+  );
   return [
 "<!DOCTYPE html>",
 "<html lang=\"en\">",
@@ -3389,7 +3392,7 @@ function getHtmlResponse() {
 "        </nav>",
         "        <div class=\"top-bar__account\" id=\"topBarAccount\">",
         "          <div id=\"daysSinceOct7\" class=\"days-since-oct7\">",
-        "            <span id=\"dayHostageInfo\">Day <strong id=\"dayCountNum\" class=\"day-count\">0</strong> | <span id=\"hostageCount\">≈50</span> hostages remain (at least 20 believed alive)</span>",
+        "            <span id=\"dayHostageInfo\">Day <strong id=\"dayCountNum\" class=\"day-count\">" + daysSinceOct7 + "</strong> | <span id=\"hostageCount\">≈50</span> hostages remain (at least 20 believed alive)</span>",
         "          </div>",
         "        </div>",
 "      </div>",
