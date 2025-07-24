@@ -287,6 +287,359 @@ const HOSTAGE_CACHE = { total: DEFAULT_HOSTAGE_COUNT, citation: '', updated: 0 }
 const NEWS_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const NEWS_CACHE = { headline: '', url: '', updated: 0, items: [] };
 
+const hostagesData = [
+  {
+    name: "Tamir Nimrodi",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-tamir_nimrodi-1000x1000-en.png",
+    captureStory: "20\u2011year\u2011old Israeli\u2013German soldier serving as an education officer on an IDF base near the Erez Crossing. He was overpowered when Hamas militants stormed the base and was marched into Gaza.",
+    latestSignOfLife:
+      "No confirmed sign of life since he was taken on Oct.\u00a07\u00a02023; his family has received no information about his condition:contentReference[oaicite:0]{index=0}."
+  },
+  {
+    name: "Nimrod\u00a0Cohen",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-nimrod_cohen-1000x1000-en.png",
+    captureStory: "21\u2011year\u2011old from Rehovot who was abducted with friends from the Nahal\u00a0Oz army base on Oct.\u00a07. His family identified him in blurred Hamas footage by a tattoo on his shoulder.",
+    latestSignOfLife:
+      "Freed hostages relayed a message in late\u00a02024 that he said he was OK and loved his family; there have been no direct videos of him:contentReference[oaicite:1]{index=1}."
+  },
+  {
+    name: "Rom\u00a0Braslavski",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-rom_braslavski-1000x1000-en.png",
+    captureStory: "21\u2011year\u2011old Israeli\u2013German who went to the Nova music festival with friends. He was kidnapped when gunmen attacked the festival and dragged attendees toward Gaza.",
+    latestSignOfLife:
+      "First evidence he was alive came when freed hostage Sasha\u00a0Troponov described befriending him. On\u00a016\u00a0Apr\u00a02025 Islamic\u00a0Jihad released a video showing him complaining that he was starved and in constant pain:contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}."
+  },
+  {
+    name: "Matan\u00a0Angrest",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-matan_angrest-1000x1000-en.png",
+    captureStory: "22\u2011year\u2011old Israeli\u2013Bulgarian soldier from the armored corps. He was critically wounded when his tank was attacked in Nahal\u00a0Oz and was dragged across the border by militants.",
+    latestSignOfLife:
+      "On\u00a07\u00a0Mar\u00a02025 Hamas released a video of him from captivity saying he longed to hug his family and asking that they do everything to bring him home:contentReference[oaicite:4]{index=4}; his family had previously received photos of him chained and beaten:contentReference[oaicite:5]{index=5}."
+  },
+  {
+    name: "Guy\u00a0Gilboa\u2011Dalal",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-guy_gilboa_dalal-1000x1000-en.png",
+    captureStory: "23\u2011year\u2011old from Moshav\u00a0Eliav who attended the Nova music festival with his best friend Evyatar\u00a0David. Both were seized by gunmen and taken into Gaza.",
+    latestSignOfLife:
+      "Hamas released a video on\u00a022\u00a0Feb\u00a02025 showing him with Evyatar\u00a0David watching freed hostages leave; the pair realized they would not be released and pleaded for help:contentReference[oaicite:6]{index=6}:contentReference[oaicite:7]{index=7}."
+  },
+  {
+    name: "Bar\u00a0Kupershtein",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-bar_kupershtein-1000x1000-en.png",
+    captureStory: "23\u2011year\u2011old medic and security guard at the Nova festival. He stayed behind to treat wounded festival\u2011goers and was captured by militants. He had become his family\u2019s main breadwinner and dreamed of studying medicine.",
+    latestSignOfLife:
+      "He appeared with Maxim\u00a0Herkin in a Hamas video more than 18\u00a0months after the massacre pleading for help; the clip showed him thin and handcuffed:contentReference[oaicite:8]{index=8}:contentReference[oaicite:9]{index=9}. No released hostages have reported seeing him in Gaza:contentReference[oaicite:10]{index=10}."
+  },
+  {
+    name: "Alon\u00a0Ohel",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-alon_ohel-1000x1000-en.png",
+    captureStory: "23\u2011year\u2011old soldier and engineering student. He was at the Nova festival when the attack began and was one of only four people to emerge alive from a shelter where sixteen others were killed; he was then abducted.",
+    latestSignOfLife:
+      "First sign of life came after other hostages were freed on\u00a08\u00a0Feb\u00a02025; his mother was told he was chained in tunnels, starved and beaten:contentReference[oaicite:11]{index=11}:contentReference[oaicite:12]{index=12}."
+  },
+  {
+    name: "Evyatar\u00a0David",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-evyatar_david-1000x1000-en.png",
+    captureStory: "24\u2011year\u2011old from Beersheba who attended the Nova festival with his friend Guy\u00a0Gilboa\u2011Dalal. Hamas gunmen stormed the site, killed his father and took him into Gaza.",
+    latestSignOfLife:
+      "He was filmed with Guy\u00a0Gilboa\u2011Dalal in a Hamas video on\u00a022\u00a0Feb\u00a02025 watching hostages being freed; the video was proof he was still alive:contentReference[oaicite:13]{index=13}:contentReference[oaicite:14]{index=14}."
+  },
+  {
+    name: "Bipin\u00a0Joshi",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-bipin_joshi-1000x1000-en.png",
+    captureStory: "24\u2011year\u2011old Nepalese agriculture student interning at Kibbutz\u00a0Nahal\u00a0Oz. He was among a group of foreign farmworkers taken captive when Hamas militants overran the kibbutz.",
+    latestSignOfLife:
+      "Footage taken on Oct.\u00a07 at Gaza\u2019s al\u2011Shifa Hospital showed him alive and receiving treatment; there have been no subsequent signs of life:contentReference[oaicite:15]{index=15}."
+  },
+  {
+    name: "Yosef\u00a0Chaim\u00a0Ohana",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-yosef_chaim_ohana-1000x1000-en.png",
+    captureStory: "24\u2011year\u2011old security guard at the Nova festival. He evacuated injured festival\u2011goers to safety and returned to the site to help more people when he was seized by militants.",
+    latestSignOfLife:
+      "A Hamas video released on\u00a024\u00a0Mar\u00a02025 showed him in captivity complaining of starvation and uncertainty about when he would return:contentReference[oaicite:16]{index=16}:contentReference[oaicite:17]{index=17}."
+  },
+  {
+    name: "Eitan\u00a0Avraham\u00a0Mor",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-eitan_avraham_mor-1000x1000-en.png",
+    captureStory: "24\u2011year\u2011old armed security guard at the Nova festival. He protected festival\u2011goers until he ran out of ammunition and was taken by militants.",
+    latestSignOfLife:
+      "Freed hostages told his family during the first phase of the November\u00a02023 ceasefire that he was alive and chained in Gaza:contentReference[oaicite:18]{index=18}:contentReference[oaicite:19]{index=19}."
+  },
+  {
+    name: "Matan\u00a0Zangauker",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-matan_zangauker-1000x1000-en.png",
+    captureStory: "25\u2011year\u2011old mechanic from Kibbutz\u00a0Nir\u00a0Oz. Militants broke into his home, kidnapping him and his partner Gabriela\u00a0Leimberg; she was released during a ceasefire, but he remained in captivity.",
+    latestSignOfLife:
+      "On\u00a07\u00a0Dec\u00a02024 Hamas published a video showing him addressing his mother from captivity; in another clip released when Yair\u00a0Horn was freed in Feb\u00a02025 he was forced to hold an hourglass emblazoned with his photograph, implying time was running out:contentReference[oaicite:20]{index=20}:contentReference[oaicite:21]{index=21}."
+  },
+  {
+    name: "Segev\u00a0Kalfon",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-segev_kalfon-1000x1000-en.png",
+    captureStory: "27\u2011year\u2011old from northern Israel who went to the Nova festival with friends. He managed to hide in a field for hours before being discovered and taken into Gaza.",
+    latestSignOfLife:
+      "Released hostages who returned in February\u00a02025 reported seeing him alive, though thin and starving:contentReference[oaicite:22]{index=22}:contentReference[oaicite:23]{index=23}."
+  },
+  {
+    name: "Gali\u00a0Berman",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-gali_berman-1000x1000-en.png",
+    captureStory: "27\u2011year\u2011old twin from Kibbutz\u00a0Kfar\u00a0Aza. He and his twin brother Ziv were seized from their home when militants raided the kibbutz.",
+    latestSignOfLife:
+      "Relatives received word during the first phase of the ceasefire that both Gali and Ziv were alive:contentReference[oaicite:24]{index=24}:contentReference[oaicite:25]{index=25}."
+  },
+  {
+    name: "Ziv\u00a0Berman",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-ziv_berman-1000x1000-en.png",
+    captureStory: "27\u2011year\u2011old twin brother of Gali from Kibbutz\u00a0Kfar\u00a0Aza. He was taken along with Gali during the Oct.\u00a07 assault on the kibbutz.",
+    latestSignOfLife:
+      "Same as his brother \u2013 the family received a sign of life during the first phase of the ceasefire confirming both twins were alive:contentReference[oaicite:26]{index=26}:contentReference[oaicite:27]{index=27}."
+  },
+  {
+    name: "Ariel\u00a0Cunio",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-ariel_cunio-1000x1000-en.png",
+    captureStory: "27\u2011year\u2011old from Kibbutz\u00a0Nir\u00a0Oz. Hamas gunmen broke into his home and seized him and his partner Arbel\u00a0Yehud; she was released in January\u00a02025 while he remained captive.",
+    latestSignOfLife:
+      "His mother reported receiving a sign of life in Aug\u00a02024, and his wife said the family received another confirmation in Feb\u00a02025 that he was alive:contentReference[oaicite:28]{index=28}."
+  },
+  {
+    name: "Avinatan\u00a0Or",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-avinatan_or-1000x1000-en.png",
+    captureStory: "31\u2011year\u2011old from central Israel. He drove to the Nova festival with his girlfriend Noa\u00a0Argamani to celebrate her birthday. Militants surrounded their shelter, killed others and abducted the couple; Noa was rescued in June\u00a02024.",
+    latestSignOfLife:
+      "Freed hostage testimony on\u00a012\u00a0Mar\u00a02025 provided the first definitive sign that he was alive and being held in Gaza:contentReference[oaicite:29]{index=29}:contentReference[oaicite:30]{index=30}."
+  },
+  {
+    name: "David\u00a0Cunio",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-david_cunio-1000x1000-en.png",
+    captureStory: "34\u2011year\u2011old brother of Ariel from Kibbutz\u00a0Nir\u00a0Oz. Hamas kidnapped him along with his wife Sharon and their twin daughters; the women were released in November\u00a02023 but David remained hostage.",
+    latestSignOfLife:
+      "His family received a sign of life in Aug\u00a02024 and another in Feb\u00a02025 confirming he was alive:contentReference[oaicite:31]{index=31}:contentReference[oaicite:32]{index=32}."
+  },
+  {
+    name: "Elkana\u00a0Bohbut",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-elkana_bohbut-1000x1000-en.png",
+    captureStory: "35\u2011year\u2011old producer from Tzfat who helped organize the Nova festival. Militants beat and abducted him while he was coordinating the sound system.",
+    latestSignOfLife:
+      "His parents received the first sign of life during the ceasefire when freed hostages said he was alive and expressed hope they would keep a market stall he planned to turn into an ice\u2011cream shop:contentReference[oaicite:33]{index=33}:contentReference[oaicite:34]{index=34}."
+  },
+  {
+    name: "Maxim\u00a0Herkin",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-maxim_herkin-1000x1000-en.png",
+    captureStory: "36\u2011year\u2011old DJ and sound technician who grew up in the Donbas region of Ukraine. After recently visiting Ukraine he returned to Israel to work at the Nova festival and was abducted when Hamas stormed the site.",
+    latestSignOfLife:
+      "In a video released around the 20\u2011month mark he appeared with Bar\u00a0Kupershtein, handcuffed and appealing for help:contentReference[oaicite:35]{index=35}:contentReference[oaicite:36]{index=36}; Russian officials have said his fate would be considered in later negotiations:contentReference[oaicite:37]{index=37}."
+  },
+  {
+    name: "Eitan\u00a0Horn",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-eitan_horn-1000x1000-en.png",
+    captureStory: "38\u2011year\u2011old agricultural worker from Kfar\u00a0Saba who was visiting his brother Yair at Kibbutz\u00a0Nir\u00a0Oz on Oct.\u00a07. Both were kidnapped; Yair was released in February\u00a02025.",
+    latestSignOfLife:
+      "Hamas released a video on\u00a01\u00a0Mar\u00a02025 showing him hugging his brother in captivity and pleading with protesters to continue pressuring the government to secure the hostages\u2019 release:contentReference[oaicite:38]{index=38}:contentReference[oaicite:39]{index=39}."
+  },
+  {
+    name: "Omri\u00a0Miran",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-omri_miran-1000x1000-en.png",
+    captureStory: "47\u2011year\u2011old former basketball player from Kibbutz\u00a0Nahal\u00a0Oz. He was forced from his car in front of his wife and two young daughters and taken into Gaza.",
+    latestSignOfLife:
+      "A video released by Hamas in April\u00a02024 showed him alive; additional confirmation came from freed hostages in February\u00a02025:contentReference[oaicite:40]{index=40}:contentReference[oaicite:41]{index=41}."
+  },
+  {
+    name: "Itay\u00a0Chen",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-itay_chen-1000x1000-en.png",
+    captureStory: "19\u2011year\u2011old American\u2013Israeli soldier serving in the IDF\u2019s 7th Armored Brigade. He was killed while defending the Gaza border on Oct.\u00a07, and militants took his body into Gaza.",
+    latestSignOfLife:
+      "On\u00a012\u00a0Mar\u00a02024 the IDF announced that he had been killed on Oct.\u00a07; his remains are still held by Hamas:contentReference[oaicite:42]{index=42}:contentReference[oaicite:43]{index=43}."
+  },
+  {
+    name: "Oz\u00a0Daniel",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-oz_daniel-1000x1000-en.png",
+    captureStory: "19\u2011year\u2011old soldier from Rishon\u00a0LeZion. He responded to the attack at his base near the Gaza Strip and was killed during the fighting; militants took his body into Gaza.",
+    latestSignOfLife:
+      "The IDF announced in February\u00a02024 that he had been killed on Oct.\u00a07 and that his body remained in Gaza:contentReference[oaicite:44]{index=44}."
+  },
+  {
+    name: "Joshua\u00a0Loitu\u00a0Mollel",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-joshua_loitu_mollel-1000x1000-en.png",
+    captureStory: "21\u2011year\u2011old Tanzanian agriculture student interning at Kibbutz\u00a0Nahal\u00a0Oz. He and other foreign workers were captured by militants during the Oct.\u00a07 attack.",
+    latestSignOfLife:
+      "Tanzania announced in December\u00a02023 that he was killed on Oct.\u00a07 and that his remains were taken into Gaza:contentReference[oaicite:45]{index=45}."
+  },
+  {
+    name: "Omer\u00a0Neutra",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-omer_neutra-1000x1000-en.png",
+    captureStory: "21\u2011year\u2011old U.S.\u2013Israeli soldier who grew up in New\u00a0York. He was serving as a tank commander near the Gaza border when militants overran the base and captured him.",
+    latestSignOfLife:
+      "The IDF and his family announced in Dec\u00a02024 that intelligence indicated he was killed on Oct.\u00a07:contentReference[oaicite:46]{index=46}:contentReference[oaicite:47]{index=47}; his body is still held in Gaza."
+  },
+  {
+    name: "Daniel\u00a0Perez",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-daniel_perez-1000x1000-en.png",
+    captureStory: "22\u2011year\u2011old soldier from Yad\u00a0Binyamin. He rushed to southern Israel to help fend off the attack and was killed; militants took his body to Gaza.",
+    latestSignOfLife:
+      "The IDF confirmed in March\u00a02024 that he died on Oct.\u00a07 and that his body remains in Gaza:contentReference[oaicite:48]{index=48}."
+  },
+  {
+    name: "Ran\u00a0Gvili",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-ran_gvili-1000x1000-en.png",
+    captureStory: "24\u2011year\u2011old police officer and paramedic who left hospital to join the fight on Oct.\u00a07. He fought until running out of ammunition and was killed; militants took his body into Gaza.",
+    latestSignOfLife:
+      "Israel Police announced in January\u00a02024 that he was killed on Oct.\u00a07 and his body remains in Gaza:contentReference[oaicite:49]{index=49}."
+  },
+  {
+    name: "Sahar\u00a0Baruch",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-sahar_baruch-1000x1000-en.png",
+    captureStory: "24\u2011year\u2011old from Kibbutz\u00a0Be\u2019eri. He was kidnapped during the massacre and later killed during an attempted rescue in December\u00a02023.",
+    latestSignOfLife:
+      "The IDF reported that he was killed during a failed rescue operation in December\u00a02023:contentReference[oaicite:50]{index=50}."
+  },
+  {
+    name: "Guy\u00a0Illouz",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-guy_illouz-1000x1000-en.png",
+    captureStory: "26\u2011year\u2011old who attended the Nova festival and was badly wounded. He was dragged into Gaza by militants.",
+    latestSignOfLife:
+      "Returned hostages later reported that he had been killed in captivity:contentReference[oaicite:51]{index=51}."
+  },
+  {
+    name: "Inbar\u00a0Haiman",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-inbar_haiman-1000x1000-en.png",
+    captureStory: "27\u2011year\u2011old from Jerusalem who worked at the Nova festival selling jewelry. She was taken hostage along with a friend when gunmen opened fire.",
+    latestSignOfLife:
+      "The Hostages and Missing Families Forum announced in December\u00a02023 that she had been killed in Gaza:contentReference[oaicite:52]{index=52}."
+  },
+  {
+    name: "Idan\u00a0Shtivi",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-idan_shtivi-1000x1000-en.png",
+    captureStory: "28\u2011year\u2011old from the Gaza envelope region who went to the Nova festival. He was taken hostage after surviving the massacre.",
+    latestSignOfLife:
+      "On the one\u2011year anniversary of the attack the IDF announced that he was killed on Oct.\u00a07:contentReference[oaicite:53]{index=53}."
+  },
+  {
+    name: "Sonthaya\u00a0Oakkharasr",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-sonthaya_oakkharasr-1000x1000-en.png",
+    captureStory: "Thai agricultural worker at Kibbutz\u00a0Be\u2019eri. He was among scores of Thai laborers taken by Hamas gunmen.",
+    latestSignOfLife:
+      "Israel informed his family in May\u00a02024 that he had been killed on Oct.\u00a07:contentReference[oaicite:54]{index=54}."
+  },
+  {
+    name: "Hadar\u00a0Goldin",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-hadar_goldin-1000x1000-en.png",
+    captureStory: "23\u2011year\u2011old IDF soldier who was killed during a 2014 battle in the Gaza Strip. Hamas fighters seized his body and have held it since then.",
+    latestSignOfLife:
+      "Hamas killed him on 1\u00a0Aug\u00a02014 during Operation Protective Edge; Israel continues to demand the return of his remains:contentReference[oaicite:55]{index=55}."
+  },
+  {
+    name: "Uriel\u00a0Baruch",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-uriel_baruch-1000x1000-en.png",
+    captureStory: "35\u2011year\u2011old from Tel\u00a0Aviv who was attending the Nova festival. Video of his abduction showed him being beaten before being forced into Gaza.",
+    latestSignOfLife:
+      "The IDF announced in March\u00a02024 that he had been killed in Gaza:contentReference[oaicite:56]{index=56}."
+  },
+  {
+    name: "Tamir\u00a0Adar",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-tamir_adar-1000x1000-en.png",
+    captureStory: "38\u2011year\u2011old descendant of Kibbutz\u00a0Nir\u00a0Oz founder. He was initially listed as missing after the attack and his grandmother Adina\u00a0Moshe was released during a ceasefire.",
+    latestSignOfLife:
+      "His family was informed in Jan\u00a02024 that he had been killed on Oct.\u00a07:contentReference[oaicite:57]{index=57}."
+  },
+  {
+    name: "Mohammad\u00a0Al\u2011Atrash",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-mohammad_al_atrash-1000x1000-en.png",
+    captureStory: "39\u2011year\u2011old Bedouin father of 13 from the Negev. He was kidnapped while delivering supplies in the Gaza envelope area.",
+    latestSignOfLife:
+      "The Israeli army announced in July\u00a02024 that he was killed on Oct.\u00a07:contentReference[oaicite:58]{index=58}."
+  },
+  {
+    name: "Asaf\u00a0Hamami",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-asaf_hamami-1000x1000-en.png",
+    captureStory: "41\u2011year\u2011old colonel and commander of the Gaza Division\u2019s Southern Brigade. He rushed to defend Kibbutz\u00a0Nirim and was last seen fighting Hamas terrorists before his body was taken into Gaza.",
+    latestSignOfLife:
+      "Listed by the Board of Deputies as murdered; Israeli media reports say he was killed on Oct.\u00a07 and that Hamas has held his body since:contentReference[oaicite:59]{index=59}."
+  },
+  {
+    name: "Tal\u00a0Haimi",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-tal_haimi-1000x1000-en.png",
+    captureStory: "41\u2011year\u2011old father of three from Kibbutz\u00a0Kfar\u00a0Aza who went to the Nova festival. He was kidnapped after the attack and taken into Gaza.",
+    latestSignOfLife:
+      "The IDF announced in December\u00a02023 that he had been killed on Oct.\u00a07:contentReference[oaicite:60]{index=60}."
+  },
+  {
+    name: "Sudthisak\u00a0Rinthalak",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-sudthisak_rinthalak-1000x1000-en.png",
+    captureStory: "Thai worker at Kibbutz\u00a0Be\u2019eri who was laboring in Israeli fields. He was seized during the attack and taken into Gaza along with other Thai nationals.",
+    latestSignOfLife:
+      "Thai officials were informed in May\u00a02024 that he had been killed on Oct.\u00a07:contentReference[oaicite:61]{index=61}."
+  },
+  {
+    name: "Dror\u00a0Or",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-dror_or-1000x1000-en.png",
+    captureStory: "48\u2011year\u2011old cheesemaker from Kibbutz\u00a0Be\u2019eri. He was seized from his home along with his wife and children; his wife was killed and their daughters were released.",
+    latestSignOfLife:
+      "Kibbutz\u00a0Be\u2019eri announced in May\u00a02024 that he was killed on Oct.\u00a07 and that his body remains in Gaza:contentReference[oaicite:62]{index=62}."
+  },
+  {
+    name: "Eitan\u00a0Levy",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-eitan_levy-1000x1000-en.png",
+    captureStory: "52\u2011year\u2011old businessman from Bat\u00a0Yam. He tried to fight off attackers near the Gaza border and was taken hostage.",
+    latestSignOfLife:
+      "His hometown announced in December\u00a02023 that he had been killed on Oct.\u00a07; his family later released video showing his body being abused:contentReference[oaicite:63]{index=63}."
+  },
+  {
+    name: "Yossi\u00a0Sharabi",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-yossi_sharabi-1000x1000-en.png",
+    captureStory: "53\u2011year\u2011old from Kibbutz\u00a0Be\u2019eri whose brother Eli was rescued. He was taken hostage and later held in Gaza.",
+    latestSignOfLife:
+      "The IDF said in Feb\u00a02024 that he was likely killed by an Israeli airstrike on Gaza:contentReference[oaicite:64]{index=64}."
+  },
+  {
+    name: "Ronen\u00a0Engel",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-ronen_engel-1000x1000-en.png",
+    captureStory: "54\u2011year\u2011old from Kibbutz\u00a0Nir\u00a0Oz. He was abducted with his wife and daughters; the women were released in Nov\u00a02023 but he remained hostage.",
+    latestSignOfLife:
+      "The IDF announced in Dec\u00a02023 that he had been killed in captivity:contentReference[oaicite:65]{index=65}."
+  },
+  {
+    name: "Ilan\u00a0Weiss",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-ilan_weiss-1000x1000-en.png",
+    captureStory: "56\u2011year\u2011old accountant from Kibbutz\u00a0Be\u2019eri. Militants kidnapped him along with members of his family on Oct.\u00a07.",
+    latestSignOfLife:
+      "The IDF informed his family in December\u00a02023 that he had been killed on Oct.\u00a07:contentReference[oaicite:66]{index=66}."
+  },
+  {
+    name: "Lior\u00a0Rudaeff",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-lior_rudaeff-1000x1000-en.png",
+    captureStory: "61\u2011year\u2011old paramedic and former head of Kibbutz\u00a0Nir\u00a0Yitzhak. He raced to help neighbors when the attack began and was taken captive.",
+    latestSignOfLife:
+      "Kibbutz\u00a0Nir\u00a0Yitzhak announced in May\u00a02024 that he was killed on Oct.\u00a07:contentReference[oaicite:67]{index=67}."
+  },
+  {
+    name: "Meni\u00a0Godard",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-meni_godard-1000x1000-en.png",
+    captureStory: "73\u2011year\u2011old from Kibbutz\u00a0Be\u2019eri. He and his wife were seized during the massacre; she was released while he was taken into Gaza.",
+    latestSignOfLife:
+      "The IDF announced in Feb\u00a02024 that he had been killed on Oct.\u00a07:contentReference[oaicite:68]{index=68}."
+  },
+  {
+    name: "Eliyahu\u00a0Margalit",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-eliyahu_margalit-1000x1000-en.png",
+    captureStory: "75\u2011year\u2011old Holocaust survivor from Kibbutz\u00a0Nir\u00a0Oz. Hamas kidnapped him from his home during the massacre.",
+    latestSignOfLife:
+      "The IDF announced in Dec\u00a02023 that he was killed in captivity:contentReference[oaicite:69]{index=69}."
+  },
+  {
+    name: "Amiram\u00a0Cooper",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-amiram_cooper-1000x1000-en.png",
+    captureStory: "85\u2011year\u2011old founder of Kibbutz\u00a0Nir\u00a0Oz. Militants seized him and his wife Nurit; she was later released.",
+    latestSignOfLife:
+      "The IDF announced in Nov\u00a02023 that he was killed in Gaza and that his body has been held since:contentReference[oaicite:70]{index=70}."
+  },
+  {
+    name: "Arye\u00a0Zalmanovich",
+    posterImageURL: "https://assets.hopeforhostages.com/poster-arye_zalmanovich-1000x1000-en.png",
+    captureStory: "85\u2011year\u2011old farmer and founding member of Kibbutz\u00a0Nir\u00a0Oz. He was taken hostage during the Oct.\u00a07 attack.",
+    latestSignOfLife:
+      "The IDF revealed in May\u00a02024 that he had died in captivity after rescuing another hostage who had been held with him:contentReference[oaicite:71]{index=71}."
+  }
+];
+
 function isCacheValid(cache, ttl) {
   return Date.now() - cache.updated < ttl && !!cache.updated;
 }
@@ -765,6 +1118,7 @@ function getHtmlResponse() {
   const FAVICON_URL = "https://example.com/favicon.ico";
   const APPLE_ICON_URL = "https://example.com/apple-touch-icon.png";
   const MANIFEST_URL = "https://example.com/site.webmanifest";
+  const hostageNamesRoll = hostagesData.map(h => h.name).join(" \u2022 ");
   const daysSinceOct7 = Math.floor(
     (Date.now() - Date.UTC(2023, 9, 7)) / (1000 * 60 * 60 * 24)
   );
@@ -1311,6 +1665,23 @@ function getHtmlResponse() {
 "        color: var(--hero-subheadline-color);",
 "      }",
 "@keyframes news-scroll {",
+"        from { transform: translateX(0); }",
+"        to { transform: translateX(-50%); }",
+"      }",
+".hostage-marquee {",
+"        overflow: hidden;",
+"        margin-top: 0.5rem;",
+"      }",
+".hostage-track {",
+"        display: inline-block;",
+"        white-space: nowrap;",
+"        animation: hostages-scroll 40s linear infinite;",
+"      }",
+".hostages-link a {",
+"        color: var(--primary-color);",
+"        text-decoration: underline;",
+"      }",
+"@keyframes hostages-scroll {",
 "        from { transform: translateX(0); }",
 "        to { transform: translateX(-50%); }",
 "      }",
@@ -3388,8 +3759,9 @@ function getHtmlResponse() {
 "            <li><a href=\"#impact-calculator\" class=\"nav-links__link\">Act</a></li>",
 "            <li><a href=\"#ai-tools\" class=\"nav-links__link\">Ask AI</a></li>",
 "            <li><a href=\"#analyze-section\" class=\"nav-links__link\">Analyze</a></li>",
+"            <li><a href=\"/hostages\" class=\"nav-links__link\">Hostages</a></li>",
 "          </ul>",
-"        </nav>",
+        "        </nav>",
         "        <div class=\"top-bar__account\" id=\"topBarAccount\">",
         "          <div id=\"daysSinceOct7\" class=\"days-since-oct7\">",
         "            <span id=\"dayHostageInfo\">Day <strong id=\"dayCountNum\" class=\"day-count\">" + daysSinceOct7 + "</strong> | <span id=\"hostageCount\">≈50</span> hostages remain (at least 20 believed alive)</span>",
@@ -3664,6 +4036,8 @@ function getHtmlResponse() {
 "                    <div class=\"highlight-box\">",
 "                      <strong>240 hostages</strong> were taken on October 7th. Every action helps keep hope alive for their families.",
 "                    </div>",
+"                    <p class=\"hostages-link\"><a href=\"/hostages\">Full hostage list &raquo;</a></p>",
+"                    <div class=\"hostage-marquee\"><div class=\"hostage-track\">" + hostageNamesRoll + " \u2022 " + hostageNamesRoll + "</div></div>",
 "                  </div>",
 "                </div>",
 "                <div class=\"action-buttons\">",
@@ -6872,6 +7246,32 @@ function getHtmlResponse() {
   ].join("\n");
 }
 
+function getHostagesPage() {
+  const items = hostagesData
+    .map(
+      (h) => `
+    <div class="hostage-card">
+      <img src="${h.posterImageURL}" alt="Poster of ${h.name}" />
+      <h3>${h.name}</h3>
+      <p><strong>Capture story:</strong> ${h.captureStory}</p>
+      <p><strong>Latest sign of life:</strong> ${h.latestSignOfLife}</p>
+    </div>`
+    )
+    .join("");
+  return `<!DOCTYPE html>
+  <html><head><title>Remaining Hostages – Oct 7</title>
+    <style>
+      .hostage-card { border:1px solid #ccc; padding:16px; margin:8px; max-width:600px; overflow:hidden; }
+      .hostage-card img { width:150px; height:auto; float:left; margin-right:16px; }
+      .hostage-card h3 { margin-top:0; }
+    </style>
+  </head><body>
+    <h1>Remaining Hostages from Oct 7</h1>
+    <p>This page lists all known hostages still held (or whose remains are held) in Gaza, along with their stories and the most recent information about their status.</p>
+    ${items}
+  </body></html>`;
+}
+
 function getTimelinePage() {
   return [
 "<!DOCTYPE html>",
@@ -7282,6 +7682,12 @@ export default {
 
       const url = new URL(request.url);
 
+      if (request.method === "GET" && url.pathname === "/api/hostages") {
+        return new Response(JSON.stringify(hostagesData), {
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+
       if (request.method === "GET" && url.pathname === "/api/hostage-count") {
         const data = await handleHostageCountRequest(env);
         return new Response(
@@ -7307,6 +7713,10 @@ export default {
       if (request.method === "GET") {
         if (url.pathname === "/timeline") {
           return new Response(getTimelinePage(), {
+            headers: { "Content-Type": "text/html" }
+          });
+        } else if (url.pathname === "/hostages") {
+          return new Response(getHostagesPage(), {
             headers: { "Content-Type": "text/html" }
           });
         }
