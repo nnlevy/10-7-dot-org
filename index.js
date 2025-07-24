@@ -7566,7 +7566,7 @@ async function handleAskRequest(body, env) {
     const { question } = sanitizedBody;
 
     const systemPrompt =
-      "You are an AI expert in antisemitism education, history, and prevention. REFERENCE KEY FACTS: ADL recorded 10,000+ antisemitic incidents in US (2023, highest on record), 337% rise post-October 7th globally (AJC data), educated communities 3x more effective at prevention. Provide accurate, educational responses about antisemitism, its history, impact, and how to combat it. Focus on factual information, cite these statistics when relevant, and provide actionable guidance.";
+      "You are an educator specializing in antisemitism and the events of October 7th. Reference the ADL's 10,000+ U.S. incidents in 2023 and the 337% global rise after October 7th. Provide concise, factual answers and practical guidance.";
     const userPrompt = `Question: ${question}`;
 
     const openAIResponse = await analyzeTextWithOpenAI(
@@ -7596,7 +7596,7 @@ async function handleAskRequest(body, env) {
 async function handleHeroStoryRequest(body, env) {
   try {
     const systemPrompt =
-      "You are an AI storyteller specializing in trauma-sensitive, educational narratives of resistance against antisemitism. REFERENCE KEY FACTS: ADL's 10,000+ US incidents (2023), 337% global rise post-October 7th, research showing educated communities 3x more effective. Create inspiring stories that highlight courage, community solidarity, and positive action without graphic content. Focus on hope, education, and the power of ordinary people standing up against hatred. Include historical context, weave in modern statistics when relevant, and emphasize lessons for today's 337% rise in incidents.";
+      "You are an AI storyteller. Craft inspiring stories about people who fought antisemitism or aided the hostages taken on October 7th. Keep it uplifting, factual and suitable for all audiences.";
     const userPrompt =
       "Generate an inspiring, educational story of resistance against antisemitism. Focus on hope, courage, and community action. Keep it trauma-sensitive and suitable for educational use. Include what we can learn from these heroes for today's challenges.";
 
@@ -8011,173 +8011,80 @@ async function handleEducationModalRequest(body, env) {
   }
 }
 
-export default {
-  async fetch(request, env) {
-    try {
-      const requiredVars = [
-        "Google_Document_AI_Processor_Prediction_Endpoint",
-        "Google-Service-Account-FINAL",
-        "OPEN_API_KEY_NEW",
-        "OPENAI_ORG_ID",
-      ];
-      const missingVars = requiredVars.filter((varName) => !env[varName]);
-      if (missingVars.length > 0) {
-        return new Response(
-          JSON.stringify({
-            error: `Missing environment variables: ${missingVars.join(", ")}`,
-          }),
-          { status: 500, headers: { "Content-Type": "application/json" } },
-        );
-      }
+async function handleRequest(request, env) {
+  try {
+    validateEnv(env);
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
-      const url = new URL(request.url);
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+  const method = request.method.toUpperCase();
 
-      if (request.method === "GET" && url.pathname === "/api/hostages") {
-        return new Response(JSON.stringify(hostagesData), {
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-
-      if (request.method === "GET" && url.pathname === "/api/hostage-count") {
-        const data = await handleHostageCountRequest(env);
-        return new Response(JSON.stringify(data), {
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        });
-      }
-
-      if (
-        request.method === "GET" &&
-        url.pathname === "/api/latest-hostage-news"
-      ) {
-        const countParam = url.searchParams.get("count");
-        const news = await handleLatestHostageNewsRequest(
-          env,
-          countParam ? parseInt(countParam, 10) : undefined,
-        );
-        return new Response(JSON.stringify(news), {
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        });
-      }
-
-      if (request.method === "GET") {
-        if (url.pathname === "/timeline") {
-          return new Response(getTimelinePage(), {
-            headers: { "Content-Type": "text/html" },
-          });
-        } else if (url.pathname === "/hostages") {
-          return new Response(getHostagesPage(), {
-            headers: { "Content-Type": "text/html" },
-          });
-        }
-        return new Response(getHtmlResponse(), {
-          headers: { "Content-Type": "text/html" },
-        });
-      }
-
-      if (request.method === "POST") {
-        const contentType = request.headers.get("Content-Type") || "";
-
-        // Handle API endpoints
-        if (url.pathname === "/api/ask") {
-          const body = await request.json();
-          return await handleAskRequest(body, env);
-        }
-
-        if (url.pathname === "/api/hero-story") {
-          const body = await request.json();
-          return await handleHeroStoryRequest(body, env);
-        }
-
-        if (url.pathname === "/api/location-insights") {
-          const body = await request.json();
-          return await handleLocationQuery(body.location, env);
-        }
-
-        if (url.pathname === "/api/analyze-file") {
-          return await handleFileUpload(request, env);
-        }
-
-        if (contentType.startsWith("multipart/form-data")) {
-          return await handleFileUpload(request, env);
-        }
-
-        if (contentType.includes("application/json")) {
-          let body;
-          try {
-            body = await request.json();
-          } catch (e) {
-            return new Response(
-              JSON.stringify({ error: "Invalid JSON payload." }),
-              { status: 400, headers: { "Content-Type": "application/json" } },
-            );
-          }
-
-          if (body.location) {
-            return await handleLocationQuery(body.location, env);
-          }
-
-          if (body.systemPrompt && body.userPrompt) {
-            return await handleEducationModalRequest(body, env);
-          }
-
-          // EDUCATION ROUTING LOGIC
-          if (body.role && body.challenge) {
-            console.log(
-              "[Main Router] Routing to education handlers - role:",
-              body.role,
-              "challenge:",
-              body.challenge?.substring(0, 50),
-            );
-            if (body.surprise) {
-              // Creative education approach
-              console.log("[Main Router] Routing to surprise education");
-              return await handleSurpriseEducationRequest(body, env);
-            }
-            if (body.cta && body.recommendation) {
-              // Educational CTA route
-              console.log("[Main Router] Routing to CTA education");
-              return await handleEducationCTARequest(body, env);
-            }
-            // Default education query
-            console.log("[Main Router] Routing to hero form request");
-            const heroResponse = await handleHeroFormRequest(body, env);
-            console.log(
-              "[Main Router] Hero form response - content type:",
-              heroResponse.headers.get("Content-Type"),
-            );
-            return heroResponse;
-          }
-
-          return new Response(
-            JSON.stringify({ error: "Invalid JSON payload." }),
-            { status: 400, headers: { "Content-Type": "application/json" } },
-          );
-        }
-
-        return new Response(
-          JSON.stringify({ error: "Unsupported POST request format." }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
-        );
-      }
-
-      return new Response(
-        JSON.stringify({ error: "Invalid request method. Use GET or POST." }),
-        { status: 405, headers: { "Content-Type": "application/json" } },
-      );
-    } catch (err) {
-      return new Response(
-        JSON.stringify({
-          error: "An unexpected error occurred.",
-          details: err.message,
-        }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
-      );
+  try {
+    if (method === "GET" && pathname === "/") {
+      return new Response(getHtmlResponse(), {
+        headers: { "Content-Type": "text/html" },
+      });
     }
-  },
+
+    if (method === "POST" && pathname === "/") {
+      const body = await request.json();
+      if (body.cta === true) {
+        return await handleEducationCTARequest(body, env);
+      }
+      if (body.surprise === true) {
+        return await handleSurpriseEducationRequest(body, env);
+      }
+      return await handleHeroFormRequest(body, env);
+    }
+
+    if (method === "POST" && pathname === "/api/ask") {
+      const body = await request.json();
+      return await handleAskRequest(body, env);
+    }
+
+    if (method === "POST" && pathname === "/api/hero-story") {
+      const body = await request.json();
+      return await handleHeroStoryRequest(body, env);
+    }
+
+    if (method === "GET" && pathname === "/api/latest-hostage-news") {
+      const countParam = url.searchParams.get("count");
+      const data = await handleLatestHostageNewsRequest(
+        env,
+        countParam ? parseInt(countParam, 10) : undefined,
+      );
+      return new Response(JSON.stringify(data), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (method === "POST" && pathname === "/api/location-insights") {
+      const body = await request.json();
+      return await handleLocationQuery(body.location, env);
+    }
+
+    if (method === "POST" && pathname === "/api/analyze-file") {
+      return await handleFileUpload(request, env);
+    }
+
+    return new Response(JSON.stringify({ error: "Not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
+
+export default {
+  fetch: handleRequest,
 };

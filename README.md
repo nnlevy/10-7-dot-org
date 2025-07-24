@@ -84,3 +84,18 @@ $ cd 10-7-dot-org
 
 # Install dependencies (if any)
 $ npm install
+
+### Deploy to Cloudflare Workers
+
+Set the following environment variables when running `wrangler`:
+
+- `OPEN_API_KEY_NEW`
+- `OPENAI_ORG_ID`
+- `Google_Document_AI_Processor_Prediction_Endpoint`
+- `Google-Service-Account-FINAL`
+
+Then deploy with:
+
+```bash
+wrangler deploy index.js
+```
