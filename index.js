@@ -1273,7 +1273,7 @@ function validateEnv(env) {
   ];
   requiredVars.forEach((varName) => {
     if (!env[varName]) {
-      throw new Error(`Missing environment variable: ${varName}`);
+      throw new Error(`${varName} not set`);
     }
   });
 }
@@ -4850,9 +4850,9 @@ function getHtmlResponse() {
     "      }",
     "      loadLatestNews();",
     "      setInterval(loadLatestNews, 3600000);",
-    "      async function fetchChatResponse(systemPrompt, userPrompt, outputElement) {",
+    "      async function fetchChatResponse(systemPrompt, userPrompt, outputElement, endpoint = '/api/chat') {",
     "        try {",
-    "          const response = await fetch('/', {",
+    "          const response = await fetch(endpoint, {",
     "            method: 'POST',",
     "            headers: { 'Content-Type': 'application/json' },",
     "            body: JSON.stringify({ systemPrompt, userPrompt, outputElement: outputElement.id })",
@@ -5621,7 +5621,7 @@ function getHtmlResponse() {
     "          const tempOutput = document.createElement('div');",
     "          tempOutput.style.display = 'none';",
     "          document.body.appendChild(tempOutput);",
-    "          await fetchChatResponse(systemPrompt, userPrompt, tempOutput);",
+    "          await fetchChatResponse(systemPrompt, userPrompt, tempOutput, '/api/education-modal');",
     "          stopProgressIndicator(progressInterval);",
     "          let markdownContent = tempOutput.textContent || 'No content received.';",
     "          modalStepContent.innerHTML = convertMarkdownToHtml(markdownContent);",
@@ -5649,7 +5649,7 @@ function getHtmlResponse() {
     "          const tempOutput = document.createElement('div');",
     "          tempOutput.style.display = 'none';",
     "          document.body.appendChild(tempOutput);",
-    "          await fetchChatResponse(systemPrompt, userPrompt, tempOutput);",
+    "          await fetchChatResponse(systemPrompt, userPrompt, tempOutput, '/api/education-modal');",
     "          let rawCTAs = tempOutput.textContent || '[]';",
     "          document.body.removeChild(tempOutput);",
     "",
@@ -7624,6 +7624,31 @@ async function handleHeroStoryRequest(body, env) {
   }
 }
 
+async function handleChatRequest(body, env) {
+  try {
+    const sanitized = validateRequest(body, ["systemPrompt", "userPrompt"]);
+    const { systemPrompt, userPrompt } = sanitized;
+    const openAIResponse = await analyzeTextWithOpenAI(
+      userPrompt,
+      env.OPEN_API_KEY_NEW,
+      env.OPENAI_ORG_ID,
+      systemPrompt,
+    );
+    return new Response(
+      JSON.stringify({
+        content: openAIResponse.choices?.[0]?.message?.content || "",
+      }),
+      { headers: { "Content-Type": "application/json" } },
+    );
+  } catch (error) {
+    console.error("Chat request error:", error);
+    return new Response(
+      JSON.stringify({ error: "Failed to process chat request." }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
+  }
+}
+
 async function handleHostageCountRequest(env) {
   const now = Date.now();
   if (isCacheValid(HOSTAGE_CACHE, HOSTAGE_TTL_MS) && HOSTAGE_CACHE.total) {
@@ -8040,7 +8065,27 @@ async function handleRequest(request, env) {
       if (body.surprise === true) {
         return await handleSurpriseEducationRequest(body, env);
       }
+      if (
+        body.systemPrompt &&
+        body.userPrompt &&
+        !body.role &&
+        !body.challenge &&
+        !body.cta &&
+        !body.surprise
+      ) {
+        return await handleChatRequest(body, env);
+      }
       return await handleHeroFormRequest(body, env);
+    }
+
+    if (method === "POST" && pathname === "/api/chat") {
+      const body = await request.json();
+      return await handleChatRequest(body, env);
+    }
+
+    if (method === "POST" && pathname === '/api/education-modal') {
+      const body = await request.json();
+      return await handleEducationModalRequest(body, env);
     }
 
     if (method === "POST" && pathname === "/api/ask") {
