@@ -1271,11 +1271,18 @@ function validateEnv(env) {
     "OPEN_API_KEY_NEW",
     "OPENAI_ORG_ID",
   ];
-  requiredVars.forEach((varName) => {
+  for (const varName of requiredVars) {
     if (!env[varName]) {
-      throw new Error(`${varName} not set`);
+      return new Response(
+        JSON.stringify({ error: `${varName} not set` }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
-  });
+  }
+  return null;
 }
 
 function minifyCss(css) {
@@ -8037,13 +8044,9 @@ async function handleEducationModalRequest(body, env) {
 }
 
 async function handleRequest(request, env) {
-  try {
-    validateEnv(env);
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+  const envError = validateEnv(env);
+  if (envError) {
+    return envError;
   }
 
   const url = new URL(request.url);
