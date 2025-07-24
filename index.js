@@ -762,6 +762,9 @@ function validateEnv(env) {
 }
 
 function getHtmlResponse() {
+  const FAVICON_URL = "https://example.com/favicon.ico";
+  const APPLE_ICON_URL = "https://example.com/apple-touch-icon.png";
+  const MANIFEST_URL = "https://example.com/site.webmanifest";
   const daysSinceOct7 = Math.floor(
     (Date.now() - Date.UTC(2023, 9, 7)) / (1000 * 60 * 60 * 24)
   );
@@ -772,7 +775,10 @@ function getHtmlResponse() {
 "    <title>10-7.org - AI-Powered Education Platform Against Antisemitism</title>",
 "    <meta charset=\"UTF-8\"/>",
 "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover\"/>",
-"    <link rel=\"icon\" href=\"https://res.cloudinary.com/dlxzgqi9g/image/upload/fl_preserve_transparency/v1704330775/favicon-final_logo_gmlqvw.ico\" type=\"image/x-icon\">",
+`    <link rel="icon" href="${FAVICON_URL}" type="image/x-icon">`,
+`    <link rel="apple-touch-icon" href="${APPLE_ICON_URL}">`,
+`    <link rel="manifest" href="${MANIFEST_URL}">`,
+"    <meta name=\"theme-color\" content=\"#ffffff\"/>",
 "    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>",
 "    <link href=\"https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap\" rel=\"stylesheet\">",
 "    <style>",
@@ -917,6 +923,7 @@ function getHtmlResponse() {
 "        width:100%; height:100%;",
 "        background-color:var(--page-bg);",
 "        font-family:'Aleo','Dancing Script';",
+"        font-size:clamp(15px,2.5vw,18px);",
 "        overflow-x:hidden;",
 "      }",
 "      *,*::before,*::after {",
@@ -2293,8 +2300,8 @@ function getHtmlResponse() {
       "        align-items: center;",
       "        gap: 1rem;",
       "      }",
-      "      .days-since-oct7 {",
-      "        font-size: 0.85rem;",
+"      .days-since-oct7 {",
+"        font-size: clamp(0.8rem, 1.5vw, 0.95rem);",
       "        color: #fff;",
       "        background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,165,0,0.15));",
       "        padding: 0.5rem 1rem;",
@@ -2306,10 +2313,10 @@ function getHtmlResponse() {
       "        white-space: nowrap;",
       "        box-shadow: 0 2px 8px rgba(255, 215, 0, 0.2);",
       "      }",
-      "      .day-count {",
-      "        color: var(--secondary-color);",
-      "        font-weight: 700;",
-      "        font-size: 1rem;",
+"      .day-count {",
+"        color: var(--secondary-color);",
+"        font-weight: 700;",
+"        font-size: clamp(0.9rem, 2vw, 1.1rem);",
       "      }",
       "      .ribbon-icon {",
       "        font-size: 0.9rem;",
@@ -2373,12 +2380,12 @@ function getHtmlResponse() {
       "          justify-content: center;",
       "        }",
               "        .days-since-oct7 {",
-        "          font-size: 0.8rem;",
+        "          font-size: 0.75rem;",
         "          padding: 0.4rem 0.8rem;",
         "          gap: 4px;",
         "        }",
         "        .day-count {",
-        "          font-size: 0.9rem;",
+        "          font-size: 0.85rem;",
         "        }",
         "        .hostages-label {",
         "          display: none;",
