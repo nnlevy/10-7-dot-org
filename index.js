@@ -1273,13 +1273,10 @@ function validateEnv(env) {
   ];
   for (const varName of requiredVars) {
     if (!env[varName]) {
-      return new Response(
-        JSON.stringify({ error: `${varName} not set` }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ error: `${varName} not set` }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
     }
   }
   return null;
@@ -6908,7 +6905,7 @@ function getHtmlResponse() {
     "          showOutput(output, data.answer || 'No answer received.');",
     "        }",
     "      } catch (error) {",
-    "        showOutput(output, '<span style=\"color: #e53935;\">Connection error. Please try again.</span>', true);",
+    "        showOutput(output, '<span style=\"color: #e53935;\">AI service unavailable. Please try again later.</span>', true);",
     "      } finally {",
     "        setLoadingState(submitBtn, false);",
     "      }",
@@ -6946,7 +6943,7 @@ function getHtmlResponse() {
     "          showOutput(output, data.insights || 'No insights available.');",
     "        }",
     "      } catch (error) {",
-    "        showOutput(output, '<span style=\"color: #e53935;\">Connection error. Please try again.</span>', true);",
+    "        showOutput(output, '<span style=\"color: #e53935;\">AI service unavailable. Please try again later.</span>', true);",
     "      } finally {",
     "        setLoadingState(this, false);",
     "      }",
@@ -7039,7 +7036,7 @@ function getHtmlResponse() {
     "          showOutput(output, data.analysis || 'Analysis completed successfully.');",
     "        }",
     "      } catch (error) {",
-    "        showOutput(output, '<span style=\"color: #e53935;\">Upload failed. Please try again.</span>', true);",
+    "        showOutput(output, '<span style=\"color: #e53935;\">Service unavailable. Please try again later.</span>', true);",
     "      } finally {",
     "        setLoadingState(submitBtn, false);",
     "      }",
@@ -7071,7 +7068,7 @@ function getHtmlResponse() {
     "          showOutput(output, data.story || 'No story available.');",
     "        }",
     "      } catch (error) {",
-    "        showOutput(output, '<span style=\"color: #e53935;\">Connection error. Please try again.</span>', true);",
+    "        showOutput(output, '<span style=\"color: #e53935;\">AI service unavailable. Please try again later.</span>', true);",
     "      } finally {",
     "        setLoadingState(this, false);",
     "      }",
@@ -8094,7 +8091,7 @@ async function handleRequest(request, env) {
       return await handleChatRequest(body, env);
     }
 
-    if (method === "POST" && pathname === '/api/education-modal') {
+    if (method === "POST" && pathname === "/api/education-modal") {
       const body = await request.json();
       return await handleEducationModalRequest(body, env);
     }
