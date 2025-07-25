@@ -1291,6 +1291,17 @@ function getHtmlResponse() {
   const APPLE_ICON_URL = "https://example.com/apple-touch-icon.png";
   const MANIFEST_URL = "https://example.com/site.webmanifest";
   const hostageNamesRoll = hostagesData.map((h) => h.name).join(" \u2022 ");
+  const hostageCards = hostagesData
+    .map(
+      (h) => `
+      <div class="slider-container hostage-card">
+        <img src="${h.posterImageURL}" alt="Poster of ${h.name}" loading="lazy" />
+        <h3>${h.name}</h3>
+        <p><strong>Capture story:</strong> ${h.captureStory}</p>
+        <p><strong>Latest sign of life:</strong> ${h.latestSignOfLife}</p>
+      </div>`,
+    )
+    .join("");
   const daysSinceOct7 = Math.floor(
     (Date.now() - Date.UTC(2023, 9, 7)) / (1000 * 60 * 60 * 24),
   );
@@ -3938,6 +3949,49 @@ function getHtmlResponse() {
     "        background-size: 400% 100%;",
     "        animation: skeleton 1.2s ease-in-out infinite;",
     "      }",
+    "      /* Hostages modal styling */",
+    "      #hostages-overlay {",
+    "        display: none;",
+    "        position: fixed;",
+    "        top: 0;",
+    "        left: 0;",
+    "        width: 100vw;",
+    "        height: 100vh;",
+    "        background: rgba(0,0,0,0.85);",
+    "        backdrop-filter: blur(10px);",
+    "        z-index: 10000;",
+    "        align-items: center;",
+    "        justify-content: center;",
+    "      }",
+    "      #hostages-overlay[aria-hidden='false'] {",
+    "        display: flex;",
+    "      }",
+    "      #hostages-modal {",
+    "        background: #fff;",
+    "        border-radius: 16px;",
+    "        box-shadow: 0 20px 60px rgba(0,0,0,0.3);",
+    "        max-width: 90vw;",
+    "        max-height: 90vh;",
+    "        overflow: hidden;",
+    "        padding: 1rem;",
+    "        display: flex;",
+    "        flex-direction: column;",
+    "      }",
+    "      .hostages-slider {",
+    "        display: flex;",
+    "        overflow-x: auto;",
+    "        gap: 1rem;",
+    "        padding: 1rem;",
+    "      }",
+    "      .hostage-card img {",
+    "        width: 100%;",
+    "        height: auto;",
+    "        border-radius: 8px;",
+    "        margin-bottom: 0.5rem;",
+    "      }",
+    "      .hostage-card h3 {",
+    "        margin: 0.5rem 0;",
+    "      }",
     "      @keyframes skeleton {",
     "        0% { background-position: 100% 0; }",
     "        100% { background-position: 0 0; }",
@@ -4544,6 +4598,13 @@ function getHtmlResponse() {
     "    </footer>",
 
     "    ",
+    `    <div id="hostages-overlay" aria-hidden="true">`,
+    `      <div id="hostages-modal">`,
+    `        <button id="hostages-close" class="modal-close-x" aria-label="Close hostages list">×</button>`,
+    `        <h2 style="margin-top:0; color: var(--primary-color); padding: 0 0 0.5rem 0;">Remaining Hostages</h2>`,
+    `        <div class="hostages-slider">${hostageCards}</div>`,
+    `      </div>`,
+    `    </div>`,
     '    <div id="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">',
     '      <div id="modal-content">',
     '        <button id="modal-close-x" class="modal-close-x" aria-label="Close modal">×</button>',
@@ -7434,6 +7495,36 @@ function getHtmlResponse() {
     "  ",
     "  console.log('Enhanced Hero Form initialized with interactive scenarios');",
     "});",
+    "    // Hostages modal JS",
+    "document.addEventListener('DOMContentLoaded', function() {",
+    "  const overlay = document.getElementById('hostages-overlay');",
+    "  const closeBtn = document.getElementById('hostages-close');",
+    "  const links = document.querySelectorAll('a[href=\'/hostages\']');",
+    "  function open() {",
+    "    if (!overlay) return;",
+    "    overlay.style.display = 'flex';",
+    "    overlay.setAttribute('aria-hidden', 'false');",
+    "    document.body.style.overflow = 'hidden';",
+    "  }",
+    "  function close() {",
+    "    if (!overlay) return;",
+    "    overlay.style.display = 'none';",
+    "    overlay.setAttribute('aria-hidden', 'true');",
+    "    document.body.style.overflow = '';",
+    "    if (window.location.pathname === '/hostages') history.replaceState(null, '', '/');",
+    "  }",
+    "  links.forEach(l => l.addEventListener('click', e => {",
+    "    e.preventDefault();",
+    "    if (window.location.pathname !== '/hostages') history.pushState(null, '', '/hostages');",
+    "    open();",
+    "  }));",
+    "  if (closeBtn) closeBtn.addEventListener('click', close);",
+    "  overlay && overlay.addEventListener('click', e => { if (e.target === overlay) close(); });",
+    "  window.addEventListener('popstate', () => {",
+    "    if (window.location.pathname === '/hostages') { open(); } else { close(); }",
+    "  });",
+    "  if (window.location.pathname === '/hostages') open();",
+    "});",
     "/* === End Enhanced Hero Form Functionality ======= */",
     "    </script>",
     "  </body>",
@@ -8011,7 +8102,7 @@ async function handleRequest(request, env) {
   const method = request.method.toUpperCase();
 
   try {
-    if (method === "GET" && pathname === "/") {
+    if (method === "GET" && (pathname === "/" || pathname === "/hostages")) {
       return new Response(getHtmlResponse(), {
         headers: { "Content-Type": "text/html" },
       });
