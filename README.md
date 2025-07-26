@@ -30,6 +30,8 @@ This playful tool conveys the exponential power of sharing knowledge.
 A dedicated section offers **actionable steps to support hostage families** – from wearing yellow ribbons to contacting representatives.  
 The platform emphasises solidarity and provides clear ways for anyone to help.
 
+The dedicated `/hostages` page lists every known hostage with search and lazy-loading of cards, pulling data from a public API when available.
+
 ### 📚 Educational Resources
 
 Curated **lesson plans, teaching guides, videos and statistics** help educators and learners deepen their understanding.  

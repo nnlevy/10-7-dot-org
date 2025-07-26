@@ -804,6 +804,38 @@ const hostagesData = [
   },
 ];
 
+const hostagesList = hostagesData.map((h) => ({
+  status: "captive",
+  ...h,
+}));
+
+// Fetch hostages from the Hope for Hostages API with fallback to the local list
+async function fetchHostagesData(status = "") {
+  try {
+    const res = await fetchWithRetry(
+      "https://hopeforhostages.com/api/hostages",
+      {},
+      2,
+      500,
+    );
+    if (!res.ok) throw new Error(`Bad response: ${res.status}`);
+    let data = await res.json();
+    if (status) {
+      const s = status.toLowerCase();
+      data = data.filter((h) => (h.status || "").toLowerCase() === s);
+    }
+    return data;
+  } catch (err) {
+    console.error("fetchHostagesData failed:", err);
+    let data = hostagesList;
+    if (status) {
+      const s = status.toLowerCase();
+      data = data.filter((h) => (h.status || "").toLowerCase() === s);
+    }
+    return data;
+  }
+}
+
 function isCacheValid(cache, ttl) {
   return Date.now() - cache.updated < ttl && !!cache.updated;
 }
@@ -1178,12 +1210,14 @@ function renderAnalysisResponse(openAIResponse) {
 async function handleFileUpload(request, env) {
   try {
     const clientIp =
-      request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
+      request.headers.get("cf-connecting-ip") ||
+      request.headers.get("x-forwarded-for") ||
+      "";
     if (!rateLimiter.check(clientIp)) {
-      return new Response(
-        JSON.stringify({ error: "Too many requests" }),
-        { status: 429, headers: { "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ error: "Too many requests" }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      });
     }
     const contentType = request.headers.get("Content-Type") || "";
     if (!contentType.includes("multipart/form-data")) {
@@ -1278,20 +1312,22 @@ async function handleFileUpload(request, env) {
 async function handleLocationQuery(location, env, request) {
   try {
     const clientIp =
-      request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
+      request.headers.get("cf-connecting-ip") ||
+      request.headers.get("x-forwarded-for") ||
+      "";
     if (!rateLimiter.check(clientIp)) {
-      return new Response(
-        JSON.stringify({ error: "Too many requests" }),
-        { status: 429, headers: { "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ error: "Too many requests" }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const loc = sanitizeServerInput(location || "");
     if (!loc) {
-      return new Response(
-        JSON.stringify({ error: "Invalid city" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ error: "Invalid city" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     if (
@@ -4766,7 +4802,8 @@ function getHtmlResponse() {
     "      stories: [",
     "        { title: 'Neighbors helping one another', summary: 'Communities came together to protect each other from violence and misinformation.' },",
     "        { title: 'Students standing up', summary: 'University groups organized rallies in support of the hostages and against antisemitism.' }",
-    "      ]",
+    "      ],",
+    `      hostages: ${JSON.stringify(hostagesList)}`,
     "    };",
     "    ",
     "    function shareFeedbackHTML() {",
@@ -7464,30 +7501,92 @@ function getResourcesModule() {
   return `export function initResourceActions() {\n  document.querySelectorAll('.resource-accordion').forEach(details => {\n    details.addEventListener('toggle', () => {\n      const summary = details.querySelector('summary');\n      if (summary) summary.setAttribute('aria-expanded', details.open.toString());\n    });\n  });\n\n  document.querySelectorAll('.timeline-learn-more-btn').forEach(btn => {\n    btn.addEventListener('click', () => {\n      window.location.href = '/timeline.html';\n    });\n  });\n\n  document.querySelectorAll('.timeline-share-btn').forEach(btn => {\n    btn.addEventListener('click', () => {\n      const title = 'October 7th Timeline';\n      const text  = 'Explore key moments and facts from October 7th.';\n      shareContent(title, text);\n    });\n  });\n\n  document.querySelectorAll('.get-action-plan-btn').forEach(btn => {\n    btn.addEventListener('click', () => {\n      document.getElementById('impact-calculator').scrollIntoView({ behavior: 'smooth' });\n    });\n  });\n\n  document.querySelectorAll('.share-hope-btn').forEach(btn => {\n    btn.addEventListener('click', () => {\n      const title = 'Support the Hostages';\n      const text  = 'Every action helps keep hope alive for hostage families.';\n      shareContent(title, text);\n    });\n  });\n}\n`;
 }
 
-function getHostagesPage() {
-  const items = hostagesData
-    .map(
-      (h) => `
-    <div class="hostage-card">
-      <img src="${h.posterImageURL}" alt="Poster of ${h.name}" loading="lazy" />
-      <h3>${h.name}</h3>
-      <p><strong>Capture story:</strong> ${h.captureStory}</p>
-      <p><strong>Latest sign of life:</strong> ${h.latestSignOfLife}</p>
-    </div>`,
-    )
-    .join("");
-  return `<!DOCTYPE html>
-  <html><head><title>Remaining Hostages – Oct 7</title>
+function getHostagesPage(q = "") {
+  const searchQuery = sanitizeServerInput(q);
+  const html = `<!DOCTYPE html>
+  <html lang="en"><head><title>Hostages and Missing Families - 10-7.org</title>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
-      .hostage-card { border:1px solid #ccc; padding:16px; margin:8px; max-width:600px; overflow:hidden; }
-      .hostage-card img { width:150px; height:auto; float:left; margin-right:16px; }
-      .hostage-card h3 { margin-top:0; }
+      body{font-family:Roboto,Arial,sans-serif;padding:1rem;line-height:1.6;background:#fff;}
+      .back-link{display:inline-block;margin-bottom:1rem;}
+      .search-bar{margin-bottom:1rem;}
+      .hostage-grid{display:flex;flex-wrap:wrap;gap:1rem;}
+      .hostage-card{border:1px solid #ccc;border-radius:6px;padding:1rem;width:280px;background:#fff;}
+      .hostage-card img{width:100%;height:auto;border-radius:4px;}
+      .load-more-btn{margin:1rem auto;display:block;}
+      .sr-only{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;}
     </style>
   </head><body>
-    <h1>Remaining Hostages from Oct 7</h1>
-    <p>This page lists all known hostages still held (or whose remains are held) in Gaza, along with their stories and the most recent information about their status.</p>
-    ${items}
+    <a href="/" class="back-link">\u2190 Back to Home</a>
+    <h1>Hostages and Missing Families</h1>
+    <div class="search-bar" role="search">
+      <label for="searchInput" class="sr-only">Search by name</label>
+      <input id="searchInput" type="search" placeholder="Search by name..." aria-label="Search by name" value="${searchQuery}" />
+      <label for="statusFilter" class="sr-only">Filter by status</label>
+      <select id="statusFilter" aria-label="Filter by status">
+        <option value="">All statuses</option>
+        <option value="captive">Still captive</option>
+      </select>
+    </div>
+    <div id="hostagesList" class="hostage-grid" aria-live="polite"></div>
+    <button id="loadMore" class="load-more-btn" aria-label="Load more hostages">Load More</button>
+    <script>
+      const offlineData = { hostages: ${JSON.stringify(hostagesList)} };
+      const PAGE_SIZE = 12;
+      let allHostages = [];
+      let filtered = [];
+      let index = PAGE_SIZE;
+      const container = document.getElementById('hostagesList');
+      const loadMore = document.getElementById('loadMore');
+      const searchInput = document.getElementById('searchInput');
+      const statusSelect = document.getElementById('statusFilter');
+
+      async function fetchData() {
+        try {
+          const url = '/api/hostages' + (statusSelect.value ? '?status=' + encodeURIComponent(statusSelect.value) : '');
+          const res = await fetch(url);
+          if (res.ok) return await res.json();
+        } catch (e) {}
+        return offlineData.hostages;
+      }
+
+      function render() {
+        const q = searchInput.value.toLowerCase();
+        filtered = allHostages.filter(h =>
+          h.name.toLowerCase().includes(q) &&
+          (!statusSelect.value || (h.status || '').toLowerCase() === statusSelect.value.toLowerCase())
+        );
+        container.innerHTML = '';
+        filtered.slice(0, index).forEach(h => {
+          const card = document.createElement('article');
+          card.className = 'hostage-card';
+          card.innerHTML =
+            '<img src="' + h.posterImageURL + '" alt="Poster of ' + h.name + '" loading="lazy">' +
+            '<h3>' + h.name + '</h3>' +
+            '<p><strong>Capture story:</strong> ' + h.captureStory + '</p>' +
+            '<p><strong>Status:</strong> ' + (h.status || '') + '</p>' +
+            '<p><strong>Latest sign of life:</strong> ' + h.latestSignOfLife + '</p>';
+          container.appendChild(card);
+        });
+        loadMore.style.display = filtered.length > index ? 'block' : 'none';
+      }
+
+      loadMore.addEventListener('click', () => { index += PAGE_SIZE; render(); });
+      searchInput.addEventListener('input', () => { index = PAGE_SIZE; render(); });
+      statusSelect.addEventListener('change', async () => { allHostages = await fetchData(); index = PAGE_SIZE; render(); });
+
+      (async () => {
+        allHostages = await fetchData();
+        render();
+      })();
+    </script>
   </body></html>`;
+  return html.replace(
+    /<style>([\s\S]*?)<\/style>/g,
+    (m, css) => `<style>${minifyCss(css)}</style>`,
+  );
 }
 
 function getTimelinePage() {
@@ -7548,12 +7647,14 @@ async function handleAskRequest(body, env, request) {
     const { question } = sanitizedBody;
 
     const clientIp =
-      request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
+      request.headers.get("cf-connecting-ip") ||
+      request.headers.get("x-forwarded-for") ||
+      "";
     if (!rateLimiter.check(clientIp)) {
-      return new Response(
-        JSON.stringify({ error: "Too many requests" }),
-        { status: 429, headers: { "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ error: "Too many requests" }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const systemPrompt =
@@ -7588,12 +7689,14 @@ async function handleAskRequest(body, env, request) {
 async function handleHeroStoryRequest(body, env, request) {
   try {
     const clientIp =
-      request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
+      request.headers.get("cf-connecting-ip") ||
+      request.headers.get("x-forwarded-for") ||
+      "";
     if (!rateLimiter.check(clientIp)) {
-      return new Response(
-        JSON.stringify({ error: "Too many requests" }),
-        { status: 429, headers: { "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ error: "Too many requests" }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      });
     }
     const systemPrompt =
       "You are an AI storyteller. Craft inspiring stories about people who fought antisemitism or aided the hostages taken on October 7th. Keep it uplifting, factual and suitable for all audiences.";
@@ -7699,6 +7802,25 @@ async function handleHostageCountRequest(env) {
       error: "Failed to fetch data",
     };
   }
+}
+
+async function handleHostagesRequest(env, request) {
+  const clientIp =
+    request.headers.get("cf-connecting-ip") ||
+    request.headers.get("x-forwarded-for") ||
+    "";
+  if (!rateLimiter.check(clientIp)) {
+    return new Response(JSON.stringify({ error: "Too many requests" }), {
+      status: 429,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  const url = new URL(request.url);
+  const status = sanitizeServerInput(url.searchParams.get("status") || "");
+  const data = await fetchHostagesData(status);
+  return new Response(JSON.stringify(data), {
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 /*************************************************************
@@ -8051,8 +8173,15 @@ async function handleRequest(request, env) {
   const method = request.method.toUpperCase();
 
   try {
-    if (method === "GET" && (pathname === "/" || pathname === "/hostages")) {
+    if (method === "GET" && pathname === "/") {
       return new Response(getHtmlResponse(), {
+        headers: { "Content-Type": "text/html" },
+      });
+    }
+
+    if (method === "GET" && pathname === "/hostages") {
+      const search = sanitizeServerInput(url.searchParams.get("q") || "");
+      return new Response(getHostagesPage(search), {
         headers: { "Content-Type": "text/html" },
       });
     }
@@ -8118,12 +8247,21 @@ async function handleRequest(request, env) {
       });
     }
 
+    if (method === "GET" && pathname === "/api/hostages") {
+      return await handleHostagesRequest(env, request);
+    }
+
     if (
       method === "POST" &&
-      (pathname === "/api/location-insights" || pathname === "/api/region-insights")
+      (pathname === "/api/location-insights" ||
+        pathname === "/api/region-insights")
     ) {
       const body = await request.json();
-      return await handleLocationQuery(body.location || body.city, env, request);
+      return await handleLocationQuery(
+        body.location || body.city,
+        env,
+        request,
+      );
     }
 
     if (
