@@ -4258,11 +4258,11 @@ function getHtmlResponse() {
     "                  </div>",
     "                </div>",
     '                <div class="action-buttons">',
-    '                  <button id="timeline-learn-btn" class="primary-action-btn" aria-expanded="false" aria-controls="timeline-extra">',
+    '                  <button id="timeline-learn-btn" class="primary-action-btn timeline-learn-more-btn" aria-expanded="false" aria-controls="timeline-extra">',
     '                    <span class="btn-icon">📖</span>',
     "                    Learn More Details",
     "                  </button>",
-    "                  <button class=\"secondary-action-btn\" onclick=\"shareContent('October 7th: Remember the Victims','Learn about October 7th and how to honor the memory of victims')\">",
+    '                  <button class="secondary-action-btn timeline-share-btn">',
     '                    <span class="btn-icon">📤</span>',
     "                    Share Timeline",
     "                  </button>",
@@ -4303,11 +4303,11 @@ function getHtmlResponse() {
     "                  </div>",
     "                </div>",
     '                <div class="action-buttons">',
-    "                  <button class=\"primary-action-btn\" onclick=\"document.getElementById('hero-user-challenge').value='What can I do to support the remaining hostages and their families?'; document.querySelector('.hero-cta').click();\">",
+    '                  <button class="primary-action-btn get-action-plan-btn">',
     '                    <span class="btn-icon">💪</span>',
     "                    Get Action Plan",
     "                  </button>",
-    '                  <button class="secondary-action-btn share-story-btn">',
+    '                  <button class="secondary-action-btn share-hope-btn">',
     '                    <span class="btn-icon">💛</span>',
     "                    Share Hope",
     "                  </button>",
@@ -6147,16 +6147,16 @@ function getHtmlResponse() {
     "        const errEl = document.getElementById('uploadError'); if (errEl) errEl.classList.add('sr-only');",
     "        localStorage.setItem(cacheKey, analysisResult.innerHTML);",
     "        ",
-"      } catch (error) {",
-"        console.error('File upload error:', error);",
-"        analysisResult.classList.remove('hidden');",
-"        analysisResult.classList.remove('loading-skeleton');",
-"        const errEl = document.getElementById('uploadError');",
-"        const offlineMsg = offlineData && offlineData.timeline ? ' ' + offlineData.timeline.join(' ') : '';",
-"        analysisResult.innerHTML = 'Service unavailable. Please try again later.' + offlineMsg;",
-"        analysisResult.style.color = '#e53935';",
-"        if (errEl) { errEl.textContent = 'Unable to fetch a response right now; please try again later.'; errEl.classList.remove('sr-only'); }",
-"      } finally {",
+    "      } catch (error) {",
+    "        console.error('File upload error:', error);",
+    "        analysisResult.classList.remove('hidden');",
+    "        analysisResult.classList.remove('loading-skeleton');",
+    "        const errEl = document.getElementById('uploadError');",
+    "        const offlineMsg = offlineData && offlineData.timeline ? ' ' + offlineData.timeline.join(' ') : '';",
+    "        analysisResult.innerHTML = 'Service unavailable. Please try again later.' + offlineMsg;",
+    "        analysisResult.style.color = '#e53935';",
+    "        if (errEl) { errEl.textContent = 'Unable to fetch a response right now; please try again later.'; errEl.classList.remove('sr-only'); }",
+    "      } finally {",
     "        submitButton.disabled = false;",
     "        submitButton.textContent = 'Upload & Analyze';",
     "      }",
@@ -6537,42 +6537,7 @@ function getHtmlResponse() {
     "    if (statsGrid) observer.observe(statsGrid);",
     "  }",
     "  ",
-    "  const learnBtn = document.getElementById('timeline-learn-btn');",
-    "  let extra = document.getElementById('timeline-extra');",
-    "  if (learnBtn && !extra) {",
-    "    extra = document.createElement('div');",
-    "    extra.id = 'timeline-extra';",
-    "    extra.className = 'timeline-extra';",
-    "    extra.style.display = 'none';",
-    "    extra.innerHTML = `",
-    "      <p><strong>Detailed chronology:</strong></p>",
-    "      <ol>",
-    "        <li><strong>6:30 AM:</strong> Rockets launched across southern Israel.</li>",
-    "        <li><strong>7:40 AM:</strong> Gunmen breached border fences.</li>",
-    '        <li><strong>9:00 AM:</strong> Nova festival attack <a href="https://www.bbc.com/news/world-middle-east-67055210" target="_blank" rel="noopener">[BBC]</a>.</li>',
-    '        <li><strong>Throughout day:</strong> Over 1,200 killed and 240 taken hostage <a href="https://apnews.com/article/israel-hamas-war-timeline-07fced90c4f8ac56701d736cb060c63f" target="_blank" rel="noopener">[AP]</a>.</li>',
-    "      </ol>`;",
-    "    const container = document.querySelector('#timeline-accordion .timeline-container');",
-    "    if (container && container.parentNode) {",
-    "      container.parentNode.insertBefore(extra, container.nextSibling);",
-    "    }",
-    "  }",
     "  const warningBanner = document.querySelector('#timeline-accordion .content-warning-banner');",
-    "  if (learnBtn && extra) {",
-    "    learnBtn.addEventListener('click', function(e) {",
-    "      if (e.metaKey || e.ctrlKey) {",
-    "        window.location.href = '/timeline';",
-    "        return;",
-    "      }",
-    "      e.preventDefault();",
-    "      const expanded = extra.classList.toggle('expanded');",
-    "      extra.style.display = expanded ? 'block' : 'none';",
-    "      learnBtn.setAttribute('aria-expanded', expanded.toString());",
-    "      if (warningBanner && localStorage.getItem('timelineWarningDismissed') !== 'true') {",
-    "        warningBanner.style.display = 'flex';",
-    "      }",
-    "    });",
-    "  }",
     "  document.querySelectorAll('.hide-warning-btn').forEach(btn => {",
     "    btn.addEventListener('click', () => {",
     "      const banner = btn.closest('.content-warning-banner');",
@@ -7404,6 +7369,10 @@ function getHtmlResponse() {
     "      }",
     "      document.addEventListener('DOMContentLoaded', initImpactSimulator);",
     "    </script>",
+    '    <script type="module">',
+    "      import { initResourceActions } from '/modules/resources.js';",
+    "      document.addEventListener('DOMContentLoaded', initResourceActions);",
+    "    </script>",
     "  </body>",
     "</html>",
   ];
@@ -7412,6 +7381,10 @@ function getHtmlResponse() {
     /<style>([\s\S]*?)<\/style>/g,
     (m, css) => `<style>${minifyCss(css)}</style>`,
   );
+}
+
+function getResourcesModule() {
+  return `export function initResourceActions() {\n  document.querySelectorAll('.resource-accordion').forEach(details => {\n    details.addEventListener('toggle', () => {\n      const summary = details.querySelector('summary');\n      if (summary) summary.setAttribute('aria-expanded', details.open.toString());\n    });\n  });\n\n  document.querySelectorAll('.timeline-learn-more-btn').forEach(btn => {\n    btn.addEventListener('click', () => {\n      window.location.href = '/timeline.html';\n    });\n  });\n\n  document.querySelectorAll('.timeline-share-btn').forEach(btn => {\n    btn.addEventListener('click', () => {\n      const title = 'October 7th Timeline';\n      const text  = 'Explore key moments and facts from October 7th.';\n      shareContent(title, text);\n    });\n  });\n\n  document.querySelectorAll('.get-action-plan-btn').forEach(btn => {\n    btn.addEventListener('click', () => {\n      document.getElementById('impact-calculator').scrollIntoView({ behavior: 'smooth' });\n    });\n  });\n\n  document.querySelectorAll('.share-hope-btn').forEach(btn => {\n    btn.addEventListener('click', () => {\n      const title = 'Support the Hostages';\n      const text  = 'Every action helps keep hope alive for hostage families.';\n      shareContent(title, text);\n    });\n  });\n}\n`;
 }
 
 function getHostagesPage() {
@@ -7985,13 +7958,23 @@ async function handleRequest(request, env) {
       });
     }
 
+    if (method === "GET" && pathname === "/timeline.html") {
+      return new Response(getTimelinePage(), {
+        headers: { "Content-Type": "text/html" },
+      });
+    }
 
+    if (method === "GET" && pathname === "/modules/resources.js") {
+      return new Response(getResourcesModule(), {
+        headers: { "Content-Type": "application/javascript" },
+      });
+    }
 
     if (method === "POST" && pathname === "/") {
       const body = await request.json();
       if (body.cta === true) {
         return await handleEducationCTARequest(body, env);
-        }
+      }
       if (
         body.systemPrompt &&
         body.userPrompt &&
