@@ -64,7 +64,7 @@ The JavaScript includes debounced input handling, ARIA attributes and error stat
 
 - **Frontend:** vanilla HTML5/CSS3 with modern JavaScript.  Animations are powered by [Anime.js](https://animejs.com).  The site is fully static and can be served from any HTTP server.  
 - **AI Integration:** The project uses the OpenAI API via a server‑side endpoint.  Environment variables (`OPENAI_API_KEY` and `OPENAI_ORG_ID`) keep credentials out of the client code.  
-- **Serverless Functions:** Endpoints under `/api/` handle tasks like hostage count retrieval, latest news scraping, chat completion and CTA generation.  They can be run in a Node.js environment or deployed to serverless platforms (e.g. Vercel, Netlify or Cloudflare Workers).  
+- **Serverless Functions:** Endpoints under `/api/` provide AI Q&A, heroic stories, regional insights and document analysis with rate limiting. They also handle hostage count retrieval, latest news scraping, chat completion and CTA generation. These functions run in Node.js or on serverless platforms such as Vercel, Netlify or Cloudflare Workers.
 - **Analytics & A/B Testing:** A simple event tracker records actions and call‑to‑action variants using `localStorage`/`sessionStorage`.  In production you can connect this data to services like Google Analytics or PostHog.
 
 ## Getting Started

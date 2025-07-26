@@ -17,6 +17,26 @@ function sanitizeServerInput(input) {
     .substring(0, 1000); // Limit length to prevent DoS
 }
 
+const RATE_LIMIT_MAX = 3;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_STORE = new Map();
+
+const rateLimiter = {
+  check(ip) {
+    if (!ip) return true;
+    const now = Date.now();
+    const entry = RATE_LIMIT_STORE.get(ip);
+    if (!entry || now - entry.start > RATE_LIMIT_WINDOW_MS) {
+      RATE_LIMIT_STORE.set(ip, { count: 1, start: now });
+      return true;
+    }
+    if (entry.count >= RATE_LIMIT_MAX) return false;
+    entry.count++;
+    RATE_LIMIT_STORE.set(ip, entry);
+    return true;
+  },
+};
+
 // Rate limiting and request validation
 function validateRequest(body, requiredFields = []) {
   if (!body || typeof body !== "object") {
@@ -202,7 +222,13 @@ function preprocessText(text) {
 /**
  * Calls the OpenAI API for analyzing the user's text.
  */
-async function analyzeTextWithOpenAI(text, apiKey, orgId, systemPrompt = null) {
+async function analyzeTextWithOpenAI(
+  text,
+  apiKey,
+  orgId,
+  systemPrompt = null,
+  model = "gpt-3.5-turbo",
+) {
   console.log("[analyzeTextWithOpenAI] Starting API call to OpenAI");
   console.log("[analyzeTextWithOpenAI] Text length:", text.length);
   console.log(
@@ -218,7 +244,7 @@ async function analyzeTextWithOpenAI(text, apiKey, orgId, systemPrompt = null) {
       "OpenAI-Organization": orgId,
     },
     body: JSON.stringify({
-      model: "gpt-3.5-turbo",
+      model,
       messages: [
         {
           role: "system",
@@ -267,6 +293,7 @@ async function analyzeTextWithOpenAIStream(
   apiKey,
   orgId,
   systemPrompt = null,
+  model = "gpt-3.5-turbo",
 ) {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -276,7 +303,7 @@ async function analyzeTextWithOpenAIStream(
       "OpenAI-Organization": orgId,
     },
     body: JSON.stringify({
-      model: "gpt-3.5-turbo",
+      model,
       messages: [
         {
           role: "system",
@@ -314,6 +341,15 @@ const HOSTAGE_CACHE = {
 // Cache for the latest hostage news (30 min TTL)
 const NEWS_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const NEWS_CACHE = { headline: "", url: "", updated: 0, items: [] };
+
+const REGION_TTL_MS = 60 * 60 * 1000; // 1 hour
+const REGION_CACHE = {};
+
+const HERO_STORIES = [
+  "During WWII, Danish citizens ferried thousands of Jews to safety in Sweden, risking their lives to defy the Nazis.",
+  "After antisemitic threats in Los Angeles, neighbors of all backgrounds formed a guard so a synagogue could hold services safely.",
+  "When hateful graffiti appeared at a local school, students organized a clean-up and held a rally celebrating Jewish culture.",
+];
 
 const hostagesData = [
   {
@@ -1095,6 +1131,20 @@ async function handleLatestHostageNewsRequest(env, count) {
 }
 
 /*************************************************************
+ * 2) REGION STATS FETCHER
+ *************************************************************/
+async function fetchRegionStats(city) {
+  const url = `https://api.adl.org/heat?city=${encodeURIComponent(city)}`;
+  try {
+    const res = await fetchWithRetry(url, {}, 2, 500);
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.error("fetchRegionStats error:", err);
+  }
+  return null;
+}
+
+/*************************************************************
  * 2) LOCATION & FILE UPLOAD HANDLERS
  *************************************************************/
 function validateFile(file) {
@@ -1127,6 +1177,14 @@ function renderAnalysisResponse(openAIResponse) {
 }
 async function handleFileUpload(request, env) {
   try {
+    const clientIp =
+      request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
+    if (!rateLimiter.check(clientIp)) {
+      return new Response(
+        JSON.stringify({ error: "Too many requests" }),
+        { status: 429, headers: { "Content-Type": "application/json" } },
+      );
+    }
     const contentType = request.headers.get("Content-Type") || "";
     if (!contentType.includes("multipart/form-data")) {
       return new Response(
@@ -1217,11 +1275,45 @@ async function handleFileUpload(request, env) {
   }
 }
 
-async function handleLocationQuery(location, env) {
+async function handleLocationQuery(location, env, request) {
   try {
+    const clientIp =
+      request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
+    if (!rateLimiter.check(clientIp)) {
+      return new Response(
+        JSON.stringify({ error: "Too many requests" }),
+        { status: 429, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    const loc = sanitizeServerInput(location || "");
+    if (!loc) {
+      return new Response(
+        JSON.stringify({ error: "Invalid city" }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    if (
+      REGION_CACHE[loc] &&
+      Date.now() - REGION_CACHE[loc].updated < REGION_TTL_MS
+    ) {
+      return new Response(JSON.stringify(REGION_CACHE[loc].data), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    let stats = await fetchRegionStats(loc);
+    if (stats) {
+      REGION_CACHE[loc] = { data: stats, updated: Date.now() };
+      return new Response(JSON.stringify(stats), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const prompt =
       'You are an AI expert in antisemitism research and regional education. REFERENCE KEY FACTS: ADL recorded 10,000+ US antisemitic incidents (2023, highest on record), 337% global rise post-October 7th (AJC), educated communities 3x more effective at prevention. The user provided this location: "' +
-      location +
+      loc +
       '". ' +
       "Provide: 1) Regional statistics and trends about antisemitism (contextualize with national 10,000+ incidents if US location), 2) Historical context specific to this area, 3) Local resources and organizations, 4) Educational institutions and programs, 5) Specific actions people can take in this region (emphasize education given 3x effectiveness). " +
       "Cite credible sources like ADL, AJC, local Jewish organizations when possible. If specific regional data is limited, provide relevant national/international context using the key facts above.";
@@ -1233,25 +1325,10 @@ async function handleLocationQuery(location, env) {
     const content =
       openAiResponse?.choices?.[0]?.message?.content ||
       "No regional insights found. Please try again.";
-    let safeContent = content
-      .replace(/\n/g, "<br>")
-      .replace(
-        /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
-        '<a href="$2" target="_blank">$1</a>',
-      );
-    const accept =
-      env && env.request && env.request.headers && env.request.headers.get
-        ? env.request.headers.get("Accept")
-        : "";
-    if (accept && accept.includes("application/json")) {
-      return new Response(JSON.stringify({ content: content }), {
-        headers: { "Content-Type": "application/json" },
-      });
-    } else {
-      return new Response(safeContent, {
-        headers: { "Content-Type": "text/html" },
-      });
-    }
+    REGION_CACHE[loc] = { data: { content }, updated: Date.now() };
+    return new Response(JSON.stringify({ content }), {
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (err) {
     console.error("Error in handleLocationQuery:", err);
     return new Response(
@@ -7464,11 +7541,20 @@ function getTimelinePage() {
 /*************************************************************
  * 4) AI Q&A AND HEROIC STORY HANDLERS
  *************************************************************/
-async function handleAskRequest(body, env) {
+async function handleAskRequest(body, env, request) {
   try {
     // Enhanced security: Validate and sanitize inputs
     const sanitizedBody = validateRequest(body, ["question"]);
     const { question } = sanitizedBody;
+
+    const clientIp =
+      request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
+    if (!rateLimiter.check(clientIp)) {
+      return new Response(
+        JSON.stringify({ error: "Too many requests" }),
+        { status: 429, headers: { "Content-Type": "application/json" } },
+      );
+    }
 
     const systemPrompt =
       "You are an educator specializing in antisemitism and the events of October 7th. Reference the ADL's 10,000+ U.S. incidents in 2023 and the 337% global rise after October 7th. Provide concise, factual answers and practical guidance.";
@@ -7479,6 +7565,7 @@ async function handleAskRequest(body, env) {
       env.OPEN_API_KEY_NEW,
       env.OPENAI_ORG_ID,
       systemPrompt,
+      "gpt-4-turbo",
     );
 
     return new Response(
@@ -7498,28 +7585,40 @@ async function handleAskRequest(body, env) {
   }
 }
 
-async function handleHeroStoryRequest(body, env) {
+async function handleHeroStoryRequest(body, env, request) {
   try {
+    const clientIp =
+      request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "";
+    if (!rateLimiter.check(clientIp)) {
+      return new Response(
+        JSON.stringify({ error: "Too many requests" }),
+        { status: 429, headers: { "Content-Type": "application/json" } },
+      );
+    }
     const systemPrompt =
       "You are an AI storyteller. Craft inspiring stories about people who fought antisemitism or aided the hostages taken on October 7th. Keep it uplifting, factual and suitable for all audiences.";
     const userPrompt =
       "Generate an inspiring, educational story of resistance against antisemitism. Focus on hope, courage, and community action. Keep it trauma-sensitive and suitable for educational use. Include what we can learn from these heroes for today's challenges.";
 
-    const openAIResponse = await analyzeTextWithOpenAI(
-      userPrompt,
-      env.OPEN_API_KEY_NEW,
-      env.OPENAI_ORG_ID,
-      systemPrompt,
-    );
-
-    return new Response(
-      JSON.stringify({
-        story:
-          openAIResponse.choices?.[0]?.message?.content ||
-          "No story available.",
-      }),
-      { headers: { "Content-Type": "application/json" } },
-    );
+    let story = "";
+    try {
+      const openAIResponse = await analyzeTextWithOpenAI(
+        userPrompt,
+        env.OPEN_API_KEY_NEW,
+        env.OPENAI_ORG_ID,
+        systemPrompt,
+        "gpt-4-turbo",
+      );
+      story = openAIResponse.choices?.[0]?.message?.content || "";
+    } catch (err) {
+      console.error("Hero story OpenAI error:", err);
+    }
+    if (!story) {
+      story = HERO_STORIES[Math.floor(Math.random() * HERO_STORIES.length)];
+    }
+    return new Response(JSON.stringify({ story }), {
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("Hero story error:", error);
     return new Response(
@@ -8000,12 +8099,12 @@ async function handleRequest(request, env) {
 
     if (method === "POST" && pathname === "/api/ask") {
       const body = await request.json();
-      return await handleAskRequest(body, env);
+      return await handleAskRequest(body, env, request);
     }
 
     if (method === "POST" && pathname === "/api/hero-story") {
       const body = await request.json();
-      return await handleHeroStoryRequest(body, env);
+      return await handleHeroStoryRequest(body, env, request);
     }
 
     if (method === "GET" && pathname === "/api/latest-hostage-news") {
@@ -8019,12 +8118,18 @@ async function handleRequest(request, env) {
       });
     }
 
-    if (method === "POST" && pathname === "/api/location-insights") {
+    if (
+      method === "POST" &&
+      (pathname === "/api/location-insights" || pathname === "/api/region-insights")
+    ) {
       const body = await request.json();
-      return await handleLocationQuery(body.location, env);
+      return await handleLocationQuery(body.location || body.city, env, request);
     }
 
-    if (method === "POST" && pathname === "/api/analyze-file") {
+    if (
+      method === "POST" &&
+      (pathname === "/api/analyze-file" || pathname === "/api/analyze-document")
+    ) {
       return await handleFileUpload(request, env);
     }
 
