@@ -329,6 +329,44 @@ async function analyzeTextWithOpenAIStream(
 
   return response.body;
 }
+// TODO: add local favicon, Apple icon and web manifest once assets are available
+// const FAVICON_BASE64 =
+//   "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQd1PeAAAABmJLR0QA/wD/AP+gvaeTAAAACUlEQVR4nGNkZGJmGAWjYBSMAAA6BAUB3cZ5FAAAAABJRU5ErkJggg==";
+// const APPLE_ICON_BASE64 = FAVICON_BASE64;
+
+// function getFaviconResponse() {
+//   return new Response(base64ToArrayBuffer(FAVICON_BASE64), {
+//     headers: {
+//       "Content-Type": "image/png",
+//       "Access-Control-Allow-Origin": "*",
+//     },
+//   });
+// }
+
+// function getAppleIconResponse() {
+//   return new Response(base64ToArrayBuffer(APPLE_ICON_BASE64), {
+//     headers: {
+//       "Content-Type": "image/png",
+//       "Access-Control-Allow-Origin": "*",
+//     },
+//   });
+// }
+
+// function getSiteManifest() {
+//   const manifest = {
+//     name: "10-7.org",
+//     short_name: "10-7",
+//     start_url: "/",
+//     display: "standalone",
+//     background_color: "#ffffff",
+//     theme_color: "#ffffff",
+//     icons: [
+//       { src: "/favicon.ico", sizes: "16x16", type: "image/png" },
+//       { src: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+//     ],
+//   };
+//   return JSON.stringify(manifest);
+// }
 
 // Cache for the latest hostage count (1 hour TTL)
 const HOSTAGE_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -1400,9 +1438,9 @@ function minifyCss(css) {
 }
 
 function getHtmlResponse() {
-  const FAVICON_URL = "https://example.com/favicon.ico";
-  const APPLE_ICON_URL = "https://example.com/apple-touch-icon.png";
-  const MANIFEST_URL = "https://example.com/site.webmanifest";
+  // const FAVICON_URL = "/favicon.ico";
+  // const APPLE_ICON_URL = "/apple-touch-icon.png";
+  // const MANIFEST_URL = "/site.webmanifest";
   const hostageNamesRoll = hostagesData.map((h) => h.name).join(" \u2022 ");
   const hostageCards = hostagesData
     .map(
@@ -1425,9 +1463,9 @@ function getHtmlResponse() {
     "    <title>10-7.org - AI-Powered Education Platform Against Antisemitism</title>",
     '    <meta charset="UTF-8"/>',
     '    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>',
-    `    <link rel="icon" href="${FAVICON_URL}" type="image/x-icon">`,
-    `    <link rel="apple-touch-icon" href="${APPLE_ICON_URL}">`,
-    `    <link rel="manifest" href="${MANIFEST_URL}">`,
+    // `    <link rel="icon" href="${FAVICON_URL}" type="image/x-icon">`,
+    // `    <link rel="apple-touch-icon" href="${APPLE_ICON_URL}">`,
+    // `    <link rel="manifest" href="${MANIFEST_URL}">`,
     '    <meta name="theme-color" content="#ffffff"/>',
     '    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
     '    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">',
@@ -4807,7 +4845,7 @@ function getHtmlResponse() {
     "    };",
     "    ",
     "    function shareFeedbackHTML() {",
-    "      return `<div class=\"share-feedback\"><button class=\"share-btn\" aria-label=\"Share response\" onclick=\"shareContent('10-7.org info', document.getElementById('answerOutput').innerText)\">Share</button> <span>Was this helpful?</span> <button onclick=\"actionTracker.track('helpful');this.textContent='Thanks!'\">Yes</button></div>`;",
+    '      return `<div class="share-feedback"><button class="share-btn" aria-label="Share response" onclick="shareContent(\'10-7.org info\', document.getElementById(\'answerOutput\').innerText)">Share</button> <span>Was this helpful?</span> <button onclick="actionTracker.track(\'helpful\');this.textContent=\'Thanks!\'">Yes</button></div>`;',
     "    ",
     "    // A/B Testing: CTA variants for conversion optimization",
     "    const ctaVariants = [",
@@ -8178,6 +8216,21 @@ async function handleRequest(request, env) {
         headers: { "Content-Type": "text/html" },
       });
     }
+    // TODO: serve local favicon, Apple icon and manifest when assets exist
+    // if (method === "GET" && pathname === "/favicon.ico") {
+    //   return getFaviconResponse();
+    // }
+    // if (method === "GET" && pathname === "/apple-touch-icon.png") {
+    //   return getAppleIconResponse();
+    // }
+    // if (method === "GET" && pathname === "/site.webmanifest") {
+    //   return new Response(getSiteManifest(), {
+    //     headers: {
+    //       "Content-Type": "application/manifest+json",
+    //       "Access-Control-Allow-Origin": "*",
+    //     },
+    //   });
+    // }
 
     if (method === "GET" && pathname === "/hostages") {
       const search = sanitizeServerInput(url.searchParams.get("q") || "");
