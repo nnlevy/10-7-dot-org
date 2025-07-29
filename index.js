@@ -4841,7 +4841,7 @@ function getHtmlResponse() {
     "        { title: 'Neighbors helping one another', summary: 'Communities came together to protect each other from violence and misinformation.' },",
     "        { title: 'Students standing up', summary: 'University groups organized rallies in support of the hostages and against antisemitism.' }",
     "      ],",
-    "      hostages: ${JSON.stringify(hostagesList)}",
+    `      hostages: ${JSON.stringify(hostagesList)}`,
     "    };",
     "    ",
     "    function shareFeedbackHTML() {",
