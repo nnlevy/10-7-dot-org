@@ -7437,7 +7437,7 @@ function getHtmlResponse() {
     "document.addEventListener('DOMContentLoaded', function() {",
     "  const overlay = document.getElementById('hostages-overlay');",
     "  const closeBtn = document.getElementById('hostages-close');",
-    "  const links = document.querySelectorAll('a[href=\'/hostages\']');",
+    "  const links = document.querySelectorAll(\"a[href='/hostages']\");",
     "  function open() {",
     "    if (!overlay) return;",
     "    overlay.style.display = 'flex';",
