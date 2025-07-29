@@ -5507,7 +5507,7 @@ function getHtmlResponse() {
     "              }",
     "              ",
     "              const fallback = offlineData.scenarioFallbacks && currentScenario ? offlineData.scenarioFallbacks[currentScenario] : '';",
-    "              if (fallback) { chatResponse.innerHTML = 'Our AI service is currently unavailable. Here\'s what you need to know:<br>' + fallback; } else { chatResponse.textContent = errorMessage; }",
+    "              if (fallback) { chatResponse.innerHTML = 'Our AI service is currently unavailable. Here\\'s what you need to know:<br>' + fallback; } else { chatResponse.textContent = errorMessage; }",
     "              chatResponse.style.display = 'block';",
     "              chatResponse.setAttribute('aria-live', 'assertive');",
     "            }",
