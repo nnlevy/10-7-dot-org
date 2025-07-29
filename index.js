@@ -1437,6 +1437,11 @@ function minifyCss(css) {
   return css.replace(/\s+/g, " ").replace(/\s*([:{;})])\s*/g, "$1");
 }
 
+// Escape < characters so JSON can be safely embedded in <script> tags
+function jsonForScript(data) {
+  return JSON.stringify(data).replace(/</g, "\\u003C");
+}
+
 function getHtmlResponse() {
   // const FAVICON_URL = "/favicon.ico";
   // const APPLE_ICON_URL = "/apple-touch-icon.png";
@@ -4841,7 +4846,7 @@ function getHtmlResponse() {
     "        { title: 'Neighbors helping one another', summary: 'Communities came together to protect each other from violence and misinformation.' },",
     "        { title: 'Students standing up', summary: 'University groups organized rallies in support of the hostages and against antisemitism.' }",
     "      ],",
-    `      hostages: ${JSON.stringify(hostagesList)}`,
+    `      hostages: ${jsonForScript(hostagesList)}`,
     "    };",
     "    ",
     "    function shareFeedbackHTML() {",
@@ -7571,7 +7576,7 @@ function getHostagesPage(q = "") {
     <div id="hostagesList" class="hostage-grid" aria-live="polite"></div>
     <button id="loadMore" class="load-more-btn" aria-label="Load more hostages">Load More</button>
     <script>
-      const offlineData = { hostages: ${JSON.stringify(hostagesList)} };
+      const offlineData = { hostages: ${jsonForScript(hostagesList)} };
       const PAGE_SIZE = 12;
       let allHostages = [];
       let filtered = [];
