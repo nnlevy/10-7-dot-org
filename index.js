@@ -50,7 +50,7 @@ function validateRequest(body, requiredFields = []) {
       typeof body[field] !== "string" ||
       !body[field].trim()
     ) {
-      throw new Error(`Missing or invalid required field: ${field}`);
+      throw new Error("Missing or invalid required field: " + field);
     }
   }
 
@@ -179,10 +179,10 @@ async function callVisionAPI(buffer, token, endpoint) {
   try {
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+    headers: {
+      Authorization: "Bearer " + token,
+      "Content-Type": "application/json",
+    },
       body: JSON.stringify({
         rawDocument: {
           content: arrayBufferToBase64(buffer),
@@ -190,9 +190,11 @@ async function callVisionAPI(buffer, token, endpoint) {
         },
       }),
     });
-    if (!response.ok) {
-      throw new Error(`Vision/Document AI call failed: ${response.statusText}`);
-    }
+      if (!response.ok) {
+        throw new Error(
+          "Vision/Document AI call failed: " + response.statusText,
+        );
+      }
     const jsonResponse = await response.json();
     if (!jsonResponse?.document?.text) {
       throw new Error("Invalid Document AI response format (no text).");
@@ -240,7 +242,7 @@ async function analyzeTextWithOpenAI(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: "Bearer " + apiKey,
       "OpenAI-Organization": orgId,
     },
     body: JSON.stringify({
@@ -250,7 +252,7 @@ async function analyzeTextWithOpenAI(
           role: "system",
           content:
             systemPrompt ||
-            `You are October7Assist, an AI focused on educating about the October 7th attacks in Israel, the hostages, and how to counter antisemitism. Provide concise summaries, cite credible sources like ADL or AJC, and offer actionable support steps.`,
+            "You are October7Assist, an AI focused on educating about the October 7th attacks in Israel, the hostages, and how to counter antisemitism. Provide concise summaries, cite credible sources like ADL or AJC, and offer actionable support steps.",
         },
         {
           role: "user",
@@ -269,16 +271,18 @@ async function analyzeTextWithOpenAI(
     );
     const errorText = await response.text();
     console.error("[analyzeTextWithOpenAI] Error details:", errorText);
-    throw new Error(
-      `OpenAI API error: ${response.status} ${response.statusText}`,
-    );
+      throw new Error(
+        "OpenAI API error: " + response.status + " " + response.statusText,
+      );
   }
 
   const data = await response.json();
 
   if (data.error) {
     console.error("[analyzeTextWithOpenAI] OpenAI returned error:", data.error);
-    throw new Error(`OpenAI API error: ${data.error.message || data.error}`);
+    throw new Error(
+      "OpenAI API error: " + (data.error.message || data.error),
+    );
   }
 
   if (data.choices?.[0]?.finish_reason === "length") {
@@ -299,7 +303,7 @@ async function analyzeTextWithOpenAIStream(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: "Bearer " + apiKey,
       "OpenAI-Organization": orgId,
     },
     body: JSON.stringify({
@@ -309,7 +313,7 @@ async function analyzeTextWithOpenAIStream(
           role: "system",
           content:
             systemPrompt ||
-            `You are October7Assist, an AI focused on educating about the October 7th attacks in Israel, the ongoing hostage crisis, and ways to combat antisemitism. Provide concise facts, cite credible sources such as ADL or AJC, and offer actionable guidance.`,
+            "You are October7Assist, an AI focused on educating about the October 7th attacks in Israel, the ongoing hostage crisis, and ways to combat antisemitism. Provide concise facts, cite credible sources such as ADL or AJC, and offer actionable guidance.",
         },
         {
           role: "user",
@@ -856,7 +860,7 @@ async function fetchHostagesData(status = "") {
       2,
       500,
     );
-    if (!res.ok) throw new Error(`Bad response: ${res.status}`);
+    if (!res.ok) throw new Error("Bad response: " + res.status);
     let data = await res.json();
     if (status) {
       const s = status.toLowerCase();
@@ -884,7 +888,7 @@ async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
     try {
       const res = await fetch(url, options);
       if (res.ok) return res;
-      lastError = new Error(`Request failed: ${res.status}`);
+      lastError = new Error("Request failed: " + res.status);
     } catch (err) {
       lastError = err;
     }
@@ -902,7 +906,7 @@ async function fetchHostageCountUsingWebSearch(apiKey, orgId) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: "Bearer " + apiKey,
       "OpenAI-Organization": orgId,
     },
     body: JSON.stringify({
@@ -911,7 +915,7 @@ async function fetchHostageCountUsingWebSearch(apiKey, orgId) {
       tools: [{ type: "web_search" }],
     }),
   });
-  if (!res.ok) throw new Error(`OpenAI web search failed: ${res.status}`);
+  if (!res.ok) throw new Error("OpenAI web search failed: " + res.status);
   const data = await res.json();
   if (!Array.isArray(data.output)) {
     return { error: "Invalid API response" };
@@ -1011,7 +1015,7 @@ async function fetchLatestHostageNewsUsingWebSearch(apiKey, orgId, count = 1) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: "Bearer " + apiKey,
       "OpenAI-Organization": orgId,
     },
     body: JSON.stringify({
@@ -1020,7 +1024,7 @@ async function fetchLatestHostageNewsUsingWebSearch(apiKey, orgId, count = 1) {
       tools: [{ type: "web_search" }],
     }),
   });
-  if (!res.ok) throw new Error(`OpenAI web search failed: ${res.status}`);
+  if (!res.ok) throw new Error("OpenAI web search failed: " + res.status);
   const data = await res.json();
   if (!Array.isArray(data.output)) {
     return { error: "Invalid API response" };
@@ -1069,7 +1073,7 @@ async function fetchLatestHostageNewsUsingBrowsing(apiKey, orgId) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: "Bearer " + apiKey,
         "OpenAI-Organization": orgId,
       },
       body: JSON.stringify({
@@ -1080,7 +1084,7 @@ async function fetchLatestHostageNewsUsingBrowsing(apiKey, orgId) {
           {
             role: "system",
             content:
-              'You are a factual assistant. Use the browser tool to find the most recent credible headline about negotiations or updates on Israeli hostages in Gaza. Respond strictly in JSON with keys "headline" and "url".',
+              "You are a factual assistant. Use the browser tool to find the most recent credible headline about negotiations or updates on Israeli hostages in Gaza. Respond strictly in JSON with keys \"headline\" and \"url\".",
           },
           { role: "user", content: "Latest hostage negotiation news?" },
         ],
@@ -1088,7 +1092,7 @@ async function fetchLatestHostageNewsUsingBrowsing(apiKey, orgId) {
       }),
     },
   );
-  if (!res.ok) throw new Error(`OpenAI request failed: ${res.status}`);
+  if (!res.ok) throw new Error("OpenAI request failed: " + res.status);
   const data = await res.json();
   const text = data.choices?.[0]?.message?.content || "";
   try {
