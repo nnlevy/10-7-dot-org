@@ -1449,6 +1449,8 @@ function jsonForScript(data) {
     .replace(/>/g, "\\u003E");
 }
 
+const SCRIPT_CLOSE = "</scr" + "ipt>";
+
 function getHtmlResponse() {
   // const FAVICON_URL = "/favicon.ico";
   // const APPLE_ICON_URL = "/apple-touch-icon.png";
@@ -1468,7 +1470,6 @@ function getHtmlResponse() {
   const daysSinceOct7 = Math.floor(
     (Date.now() - Date.UTC(2023, 9, 7)) / (1000 * 60 * 60 * 24),
   );
-  const scriptClose = "</scr" + "ipt>";
   const htmlArr = [
     "<!DOCTYPE html>",
     '<html lang="en">',
@@ -7497,7 +7498,7 @@ function getHtmlResponse() {
     "  });",
     "});",
     "// End Enhanced Hero Form Functionality",
-    scriptClose,
+    SCRIPT_CLOSE,
     "    <script>",
     "      function initImpactSimulator() {",
     "        const peopleSlider = document.getElementById('people-slider');",
@@ -7561,7 +7562,7 @@ function getHtmlResponse() {
     // Properly close the Impact Simulator script block before closing the body.
     // Without this, browsers see an unexpected end of script (see 10\u20117.org’s
     // source around the impact simulator section for evidence).
-    scriptClose,
+    SCRIPT_CLOSE,
     "  </body>",
     "</html>",
   ];
@@ -7652,7 +7653,8 @@ function getHostagesPage(q = "") {
         allHostages = await fetchData();
         render();
       })();
-  </script></body></html>`;
+  ${SCRIPT_CLOSE}
+  </body></html>`;
   return html.replace(
     /<style>([\s\S]*?)<\/style>/g,
     (m, css) => `<style>${minifyCss(css)}</style>`,
@@ -7696,7 +7698,7 @@ function getTimelinePage() {
     "      <h2>Throughout the Day</h2>",
     '      <p>Over 1,200 people were killed and more than 240 taken hostage <a href="https://apnews.com/article/israel-hamas-war-timeline-07fced90c4f8ac56701d736cb060c63f" target="_blank" rel="noopener">[AP]</a>.</p>',
     "    </section>",
-    "    <script>const pageWarning=document.getElementById('timeline-page-warning');if(localStorage.getItem('timelineWarningDismissed')==='true'){pageWarning.style.display='none';}document.querySelector('.hide-warning-btn').addEventListener('click',()=>{pageWarning.style.display='none';localStorage.setItem('timelineWarningDismissed','true');});</script>",
+    "    <script>const pageWarning=document.getElementById('timeline-page-warning');if(localStorage.getItem('timelineWarningDismissed')==='true'){pageWarning.style.display='none';}document.querySelector('.hide-warning-btn').addEventListener('click',()=>{pageWarning.style.display='none';localStorage.setItem('timelineWarningDismissed','true');});" + SCRIPT_CLOSE,
     "  </body>",
     "</html>",
   ];
