@@ -7267,7 +7267,6 @@ function getHtmlResponse() {
     "        }",
     "      }",
     "    });",
-    "  });",
     "    ",
     "    // Add hover animations",
     "    if (typeof anime !== 'undefined') {",
