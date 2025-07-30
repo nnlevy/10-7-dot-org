@@ -4160,7 +4160,9 @@ function getHtmlResponse() {
     "      ",
     // ... existing code ...
     "    </style>",
-    '<script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>',
+    // Load anime.js dynamically; avoid literal </script>
+    '<script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></scr' +
+      "ipt>",
     "  </head>",
     "  <body>",
     '    <a href="#main-content" class="skip-link sr-only">Skip to main content</a>',
@@ -6854,7 +6856,7 @@ function getHtmlResponse() {
     "        ",
     "        const data = await response.json();",
     "        if (data.error) {",
-    "          showOutput(output, \`<span style=\"color: #e53935;\">Error: ${data.error}</span>\`, true);",
+    '          showOutput(output, \`<span style="color: #e53935;">Error: ${data.error}</span>\`, true);',
     "        } else {",
     "          showOutput(output, data.answer || 'No answer received.');",
     "        }",
@@ -6892,7 +6894,7 @@ function getHtmlResponse() {
     "        ",
     "        const data = await response.json();",
     "        if (data.error) {",
-    "          showOutput(output, \`<span style=\"color: #e53935;\">Error: ${data.error}</span>\`, true);",
+    '          showOutput(output, \`<span style="color: #e53935;">Error: ${data.error}</span>\`, true);',
     "        } else {",
     "          showOutput(output, data.insights || 'No insights available.');",
     "        }",
@@ -6985,7 +6987,7 @@ function getHtmlResponse() {
     "        ",
     "        const data = await response.json();",
     "        if (data.error) {",
-    "          showOutput(output, \`<span style=\"color: #e53935;\">Error: ${data.error}</span>\`, true);",
+    '          showOutput(output, \`<span style="color: #e53935;">Error: ${data.error}</span>\`, true);',
     "        } else {",
     "          showOutput(output, data.analysis || 'Analysis completed successfully.');",
     "        }",
@@ -7017,7 +7019,7 @@ function getHtmlResponse() {
     "        ",
     "        const data = await response.json();",
     "        if (data.error) {",
-    "          showOutput(output, \`<span style=\"color: #e53935;\">Error: ${data.error}</span>\`, true);",
+    '          showOutput(output, \`<span style="color: #e53935;">Error: ${data.error}</span>\`, true);',
     "        } else {",
     "          showOutput(output, data.story || 'No story available.');",
     "        }",
@@ -7474,7 +7476,8 @@ function getHtmlResponse() {
     "  if (window.location.pathname === '/hostages') openModal();",
     "});",
     "// End Enhanced Hero Form Functionality",
-    "    </script>",
+    // Close script without literal </script>
+    "    </scr' + 'ipt>",
     "    <script>",
     "      function initImpactSimulator() {",
     "        const peopleSlider = document.getElementById('people-slider');",
@@ -7535,11 +7538,13 @@ function getHtmlResponse() {
     "        updateShare();",
     "      }",
     "      document.addEventListener('DOMContentLoaded', initImpactSimulator);",
-    "    </script>",
+    // Close script without literal </script>
+    "    </scr' + 'ipt>",
     '    <script type="module">',
     "      import { initResourceActions } from '/modules/resources.js';",
     "      document.addEventListener('DOMContentLoaded', initResourceActions);",
-    "    </script>",
+    // Close module script without literal </script>
+    "    </scr' + 'ipt>",
     "  </body>",
     "</html>",
   ];
@@ -7634,7 +7639,8 @@ function getHostagesPage(q = "") {
         allHostages = await fetchData();
         render();
       })();
-    </script>
+    // Close script without literal </script>
+    </scr${""}ipt>
   </body></html>`;
   return html.replace(
     /<style>([\s\S]*?)<\/style>/g,
@@ -7679,7 +7685,8 @@ function getTimelinePage() {
     "      <h2>Throughout the Day</h2>",
     '      <p>Over 1,200 people were killed and more than 240 taken hostage <a href="https://apnews.com/article/israel-hamas-war-timeline-07fced90c4f8ac56701d736cb060c63f" target="_blank" rel="noopener">[AP]</a>.</p>',
     "    </section>",
-    "    <script>const pageWarning=document.getElementById('timeline-page-warning');if(localStorage.getItem('timelineWarningDismissed')==='true'){pageWarning.style.display='none';}document.querySelector('.hide-warning-btn').addEventListener('click',()=>{pageWarning.style.display='none';localStorage.setItem('timelineWarningDismissed','true');});</script>",
+    // Inline script with escaped closing tag
+    "    <script>const pageWarning=document.getElementById('timeline-page-warning');if(localStorage.getItem('timelineWarningDismissed')==='true'){pageWarning.style.display='none';}document.querySelector('.hide-warning-btn').addEventListener('click',()=>{pageWarning.style.display='none';localStorage.setItem('timelineWarningDismissed','true');});</scr' + 'ipt>",
     "  </body>",
     "</html>",
   ];
