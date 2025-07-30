@@ -1441,7 +1441,8 @@ function minifyCss(css) {
 function jsonForScript(data) {
   return JSON.stringify(data)
     .replace(/<\//g, "\\u003C/")
-    .replace(/</g, "\\u003C");
+    .replace(/</g, "\\u003C")
+    .replace(/>/g, "\\u003E");
 }
 
 function getHtmlResponse() {
