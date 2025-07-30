@@ -7554,6 +7554,10 @@ function getHtmlResponse() {
     "        updateShare();",
     "      }",
     "      document.addEventListener('DOMContentLoaded', initImpactSimulator);",
+    // Properly close the Impact Simulator script block before closing the body.
+    // Without this, browsers see an unexpected end of script (see 10\u20117.org’s
+    // source around the impact simulator section for evidence).
+    scriptClose,
     "  </body>",
     "</html>",
   ];
