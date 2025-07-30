@@ -1464,6 +1464,7 @@ function getHtmlResponse() {
   const daysSinceOct7 = Math.floor(
     (Date.now() - Date.UTC(2023, 9, 7)) / (1000 * 60 * 60 * 24),
   );
+  const scriptClose = "</scr" + "ipt>";
   const htmlArr = [
     "<!DOCTYPE html>",
     '<html lang="en">',
@@ -4162,9 +4163,7 @@ function getHtmlResponse() {
     "      ",
     // ... existing code ...
     "    </style>",
-    // Load anime.js dynamically; avoid literal </script>
-    '<script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></scr' +
-      "ipt>",
+    // Anime.js will be loaded dynamically
     "  </head>",
     "  <body>",
     '    <a href="#main-content" class="skip-link sr-only">Skip to main content</a>',
@@ -4793,6 +4792,11 @@ function getHtmlResponse() {
     "    <script>",
     "    /* === 10X IMPACT ENHANCEMENTS === */",
     "    window.currentScenario = 'custom';",
+    "    (function loadAnime() {",
+    "      const s = document.createElement('script');",
+    "      s.src = 'https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js';",
+    "      document.head.appendChild(s);",
+    "    })();",
     "    ",
     "    // Security: Input sanitization to prevent XSS and injection attacks",
     "    function sanitizeInput(input) {",
@@ -7479,7 +7483,7 @@ function getHtmlResponse() {
     "});",
     "// End Enhanced Hero Form Functionality",
     // Close script without literal </script>
-    "    </scr' + 'ipt>",
+    scriptClose,
     "    <script>",
     "      function initImpactSimulator() {",
     "        const peopleSlider = document.getElementById('people-slider');",
@@ -7541,12 +7545,12 @@ function getHtmlResponse() {
     "      }",
     "      document.addEventListener('DOMContentLoaded', initImpactSimulator);",
     // Close script without literal </script>
-    "    </scr' + 'ipt>",
+    scriptClose,
     '    <script type="module">',
     "      import { initResourceActions } from '/modules/resources.js';",
     "      document.addEventListener('DOMContentLoaded', initResourceActions);",
     // Close module script without literal </script>
-    "    </scr' + 'ipt>",
+    scriptClose,
     "  </body>",
     "</html>",
   ];
@@ -7642,7 +7646,7 @@ function getHostagesPage(q = "") {
         render();
       })();
     // Close script without literal </script>
-    </scr${""}ipt>
+    ${scriptClose}
   </body></html>`;
   return html.replace(
     /<style>([\s\S]*?)<\/style>/g,
@@ -7688,7 +7692,8 @@ function getTimelinePage() {
     '      <p>Over 1,200 people were killed and more than 240 taken hostage <a href="https://apnews.com/article/israel-hamas-war-timeline-07fced90c4f8ac56701d736cb060c63f" target="_blank" rel="noopener">[AP]</a>.</p>',
     "    </section>",
     // Inline script with escaped closing tag
-    "    <script>const pageWarning=document.getElementById('timeline-page-warning');if(localStorage.getItem('timelineWarningDismissed')==='true'){pageWarning.style.display='none';}document.querySelector('.hide-warning-btn').addEventListener('click',()=>{pageWarning.style.display='none';localStorage.setItem('timelineWarningDismissed','true');});</scr' + 'ipt>",
+    "    <script>const pageWarning=document.getElementById('timeline-page-warning');if(localStorage.getItem('timelineWarningDismissed')==='true'){pageWarning.style.display='none';}document.querySelector('.hide-warning-btn').addEventListener('click',()=>{pageWarning.style.display='none';localStorage.setItem('timelineWarningDismissed','true');});",
+    scriptClose,
     "  </body>",
     "</html>",
   ];
