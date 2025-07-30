@@ -7462,7 +7462,7 @@ function getHtmlResponse() {
     "  });",
     "  if (window.location.pathname === '/hostages') open();",
     "});",
-    "/* === End Enhanced Hero Form Functionality ======= */",
+    "// End Enhanced Hero Form Functionality",
     "    </script>",
     "    <script>",
     "      function initImpactSimulator() {",
