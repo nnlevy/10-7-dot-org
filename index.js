@@ -7481,6 +7481,23 @@ function getHtmlResponse() {
     "  });",
     "  if (window.location.pathname === '/hostages') openModal();",
     "});",
+    "// Hero button interactions (formerly initResourceActions)",
+    "document.addEventListener('DOMContentLoaded', () => {",
+    "  document.querySelectorAll('.get-action-plan-btn').forEach(btn => {",
+    "    btn.addEventListener('click', () => {",
+    "      document.getElementById('impact-calculator')",
+    "              .scrollIntoView({ behavior: 'smooth' });",
+    "    });",
+    "  });",
+    "  document.querySelectorAll('.share-hope-btn').forEach(btn => {",
+    "    btn.addEventListener('click', () => {",
+    "      const title = 'Support the Hostages';",
+    "      const text  = 'Every action helps keep hope alive for hostage families.';",
+    "      // Reuse the existing shareContent helper in your script",
+    "      shareContent(title, text);",
+    "    });",
+    "  });",
+    "});",
     "// End Enhanced Hero Form Functionality",
     // Close script without literal </script>
     scriptClose,
@@ -7546,11 +7563,6 @@ function getHtmlResponse() {
     "      document.addEventListener('DOMContentLoaded', initImpactSimulator);",
     // Close script without literal </script>
     scriptClose,
-    '    <script type="module">',
-    "      import { initResourceActions } from '/modules/resources.js';",
-    "      document.addEventListener('DOMContentLoaded', initResourceActions);",
-    // Close module script without literal </script>
-    scriptClose,
     "  </body>",
     "</html>",
   ];
@@ -7559,10 +7571,6 @@ function getHtmlResponse() {
     /<style>([\s\S]*?)<\/style>/g,
     (m, css) => `<style>${minifyCss(css)}</style>`,
   );
-}
-
-function getResourcesModule() {
-  return `export function initResourceActions() {\n  document.querySelectorAll('.resource-accordion').forEach(details => {\n    details.addEventListener('toggle', () => {\n      const summary = details.querySelector('summary');\n      if (summary) summary.setAttribute('aria-expanded', details.open.toString());\n    });\n  });\n\n  document.querySelectorAll('.timeline-learn-more-btn').forEach(btn => {\n    btn.addEventListener('click', () => {\n      window.location.href = '/timeline.html';\n    });\n  });\n\n  document.querySelectorAll('.timeline-share-btn').forEach(btn => {\n    btn.addEventListener('click', () => {\n      const title = 'October 7th Timeline';\n      const text  = 'Explore key moments and facts from October 7th.';\n      shareContent(title, text);\n    });\n  });\n\n  document.querySelectorAll('.get-action-plan-btn').forEach(btn => {\n    btn.addEventListener('click', () => {\n      document.getElementById('impact-calculator').scrollIntoView({ behavior: 'smooth' });\n    });\n  });\n\n  document.querySelectorAll('.share-hope-btn').forEach(btn => {\n    btn.addEventListener('click', () => {\n      const title = 'Support the Hostages';\n      const text  = 'Every action helps keep hope alive for hostage families.';\n      shareContent(title, text);\n    });\n  });\n}\n`;
 }
 
 function getHostagesPage(q = "") {
@@ -8271,12 +8279,6 @@ async function handleRequest(request, env) {
     if (method === "GET" && pathname === "/timeline.html") {
       return new Response(getTimelinePage(), {
         headers: { "Content-Type": "text/html" },
-      });
-    }
-
-    if (method === "GET" && pathname === "/modules/resources.js") {
-      return new Response(getResourcesModule(), {
-        headers: { "Content-Type": "application/javascript" },
       });
     }
 
