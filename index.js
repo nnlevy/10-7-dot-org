@@ -7652,7 +7652,7 @@ function getHostagesPage(q = "") {
         allHostages = await fetchData();
         render();
       })();
-  </body></html>`;
+  </script></body></html>`;
   return html.replace(
     /<style>([\s\S]*?)<\/style>/g,
     (m, css) => `<style>${minifyCss(css)}</style>`,
@@ -7696,7 +7696,7 @@ function getTimelinePage() {
     "      <h2>Throughout the Day</h2>",
     '      <p>Over 1,200 people were killed and more than 240 taken hostage <a href="https://apnews.com/article/israel-hamas-war-timeline-07fced90c4f8ac56701d736cb060c63f" target="_blank" rel="noopener">[AP]</a>.</p>',
     "    </section>",
-    "    <script>const pageWarning=document.getElementById('timeline-page-warning');if(localStorage.getItem('timelineWarningDismissed')==='true'){pageWarning.style.display='none';}document.querySelector('.hide-warning-btn').addEventListener('click',()=>{pageWarning.style.display='none';localStorage.setItem('timelineWarningDismissed','true');});",
+    "    <script>const pageWarning=document.getElementById('timeline-page-warning');if(localStorage.getItem('timelineWarningDismissed')==='true'){pageWarning.style.display='none';}document.querySelector('.hide-warning-btn').addEventListener('click',()=>{pageWarning.style.display='none';localStorage.setItem('timelineWarningDismissed','true');});</script>",
     "  </body>",
     "</html>",
   ];
