@@ -1472,9 +1472,6 @@ function getHtmlResponse() {
     "    <title>10-7.org - AI-Powered Education Platform Against Antisemitism</title>",
     '    <meta charset="UTF-8"/>',
     '    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>',
-    // `    <link rel="icon" href="${FAVICON_URL}" type="image/x-icon">`,
-    // `    <link rel="apple-touch-icon" href="${APPLE_ICON_URL}">`,
-    // `    <link rel="manifest" href="${MANIFEST_URL}">`,
     '    <meta name="theme-color" content="#ffffff"/>',
     '    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
     '    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">',
@@ -3776,7 +3773,7 @@ function getHtmlResponse() {
     "        transform: translateY(-2px);",
     "      }",
     "      ",
-    ,
+    "",
     "      ",
     "      .input-actions {",
     "        position: absolute;",
@@ -3835,7 +3832,7 @@ function getHtmlResponse() {
     "        }",
     "      }",
     "      ",
-    ,
+    "",
     "      ",
     "      /* Typing Animation for Examples */",
     "      .typing-animation {",
@@ -4161,12 +4158,9 @@ function getHtmlResponse() {
     "      /* End Modal Overlay Styling */",
     "      /* =================================================== */",
     "      ",
-    // ... existing code ...
     "    </style>",
-    // Anime.js will be loaded dynamically
     "  </head>",
     "  <body>",
-    '    <a href="#main-content" class="skip-link sr-only">Skip to main content</a>',
     '<header class="top-bar" role="banner">',
     '      <div class="top-bar__inner">',
     '        <a href="/" class="top-bar__logo" aria-label="10-7.org home">10-7.org</a>',
@@ -7499,7 +7493,6 @@ function getHtmlResponse() {
     "  });",
     "});",
     "// End Enhanced Hero Form Functionality",
-    // Close script without literal </script>
     scriptClose,
     "    <script>",
     "      function initImpactSimulator() {",
@@ -7561,8 +7554,6 @@ function getHtmlResponse() {
     "        updateShare();",
     "      }",
     "      document.addEventListener('DOMContentLoaded', initImpactSimulator);",
-    // Close script without literal </script>
-    scriptClose,
     "  </body>",
     "</html>",
   ];
@@ -7653,8 +7644,6 @@ function getHostagesPage(q = "") {
         allHostages = await fetchData();
         render();
       })();
-    // Close script without literal </script>
-    ${scriptClose}
   </body></html>`;
   return html.replace(
     /<style>([\s\S]*?)<\/style>/g,
@@ -7699,9 +7688,7 @@ function getTimelinePage() {
     "      <h2>Throughout the Day</h2>",
     '      <p>Over 1,200 people were killed and more than 240 taken hostage <a href="https://apnews.com/article/israel-hamas-war-timeline-07fced90c4f8ac56701d736cb060c63f" target="_blank" rel="noopener">[AP]</a>.</p>',
     "    </section>",
-    // Inline script with escaped closing tag
     "    <script>const pageWarning=document.getElementById('timeline-page-warning');if(localStorage.getItem('timelineWarningDismissed')==='true'){pageWarning.style.display='none';}document.querySelector('.hide-warning-btn').addEventListener('click',()=>{pageWarning.style.display='none';localStorage.setItem('timelineWarningDismissed','true');});",
-    scriptClose,
     "  </body>",
     "</html>",
   ];
