@@ -1437,9 +1437,11 @@ function minifyCss(css) {
   return css.replace(/\s+/g, " ").replace(/\s*([:{;})])\s*/g, "$1");
 }
 
-// Escape < characters so JSON can be safely embedded in <script> tags
+// Escape characters so JSON can be safely embedded in <script> tags
 function jsonForScript(data) {
-  return JSON.stringify(data).replace(/</g, "\\u003C");
+  return JSON.stringify(data)
+    .replace(/<\//g, "\\u003C/")
+    .replace(/</g, "\\u003C");
 }
 
 function getHtmlResponse() {
